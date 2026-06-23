@@ -12,7 +12,7 @@
   ];
   var ADULT_WEAK = [
     "骚",
-    "处女",
+    "处女","涩",
     "上门","空降","同城",
     "私密","刺激","诱惑",
     "妹子","少妇",
@@ -34,6 +34,10 @@
     "看置顶","置顶推文","置顶有",
     "简介","主页有",
     "的主页",
+  ];
+  // ── 拼音/变体匹配（匹配原始文本，非 CJK 提取）──
+  var PINYIN_SIGNALS = [
+    { pattern: /sao/i, keyword: "骚", pts: 2 },
   ];
   // ── 自定义关键词（你训练的 + block.html 管理的）──
   var CUSTOM_KEYWORDS = { adultStrong: [], adultWeak: [], promo: [], redirect: [] };
@@ -199,6 +203,17 @@
     var score = 0, features = [], matchedKeyword = null, matchedRedirect = null;
     if (text && typeof text === "string" && text.length > 0) {
       var normalized = normalizeText(text);
+      // ── 拼音/变体匹配（基于完整文本，不受 CJK 提取限制）──
+      if (!matchedKeyword) {
+        for (var pi = 0; pi < PINYIN_SIGNALS.length; pi++) {
+          var ps = PINYIN_SIGNALS[pi];
+          if (ps.pattern.test(normalized)) {
+            matchedKeyword = ps.keyword; score += ps.pts;
+            features.push({ k: "\u62fc\u97f3/\u53d8\u4f53", v: ps.keyword, p: ps.pts });
+            break;
+          }
+        }
+      }
       var normCJK = extractCJK(normalized);
       if (normCJK.length > 0) {
         function tryMatch(kw, pts) {
