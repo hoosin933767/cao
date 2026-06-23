@@ -1069,13 +1069,13 @@
           // 1. 内容特征检测（detectScam：成人词/引流/间杂/映射/杂乱）
           let featureResult = null;
           if (replyText && replyText.length > 0) {
-            const r = window.SpamEngine.detectScam(replyText, handle);
+            const r = window.SpamEngine.detectScam(replyText, handle, pageAuthorHandle);
             if (r.isScam) { featureResult = r; }
           }
 
           // 2. 名字特征检测
           if (!featureResult && displayName) {
-            const r = window.SpamEngine.detectScam(displayName, handle);
+            const r = window.SpamEngine.detectScam(displayName, handle, pageAuthorHandle);
             if (r.isScam) { featureResult = r; }
           }
 

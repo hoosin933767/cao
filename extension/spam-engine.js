@@ -198,7 +198,7 @@
     }
     return false;
   }
-  function detectScam(text, handle) {
+  function detectScam(text, handle, pageAuthor) {
     if (!text && !handle) return { isScam: false, score: 0, features: [], matchedKeyword: null, matchedRedirect: null };
     var score = 0, features = [], matchedKeyword = null, matchedRedirect = null;
     if (text && typeof text === "string" && text.length > 0) {
@@ -262,6 +262,23 @@
         }
       }
       if (isChaoticText(text)) { score += 2; features.push({ k: "\u5185\u5bb9\u6742\u4e71", v: "", p: 2 }); }
+      // ── 第三方 @ 引流检测：评论中 @ 了非对话作者的账号 ──
+      if (!matchedRedirect && pageAuthor && text.indexOf("@") !== -1) {
+        var atMatches = text.match(/@[A-Za-z0-9_]{1,15}/g) || [];
+        var thirdParty = null;
+        for (var ai = 0; ai < atMatches.length; ai++) {
+          var atHandle = atMatches[ai].slice(1).toLowerCase();
+          if (atHandle !== pageAuthor.toLowerCase() && atHandle !== (handle || "").toLowerCase()) {
+            thirdParty = atHandle;
+            break;
+          }
+        }
+        if (thirdParty) {
+          matchedRedirect = "@" + thirdParty;
+          if (score < 4) score += 2;
+          features.push({ k: "\u5f15\u6d41\u4fe1\u53f7", v: matchedRedirect, p: 2 });
+        }
+      }
     }
     if (handle && isHandleRandom(handle)) { score += 1; features.push({ k: "handle \u968f\u673a", v: handle, p: 1 }); }
     return { isScam: score >= 4, score: score, features: features, matchedKeyword: matchedKeyword, matchedRedirect: matchedRedirect };
