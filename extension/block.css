@@ -1,0 +1,532 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #f3f4f6;
+  color: #111827;
+  font: 14px/1.5 Arial, sans-serif;
+}
+
+.page {
+  width: min(960px, calc(100vw - 32px));
+  margin: 24px auto;
+}
+
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+h1 {
+  margin: 0;
+  font: 700 24px/1.25 Arial, sans-serif;
+}
+
+#summary {
+  margin: 4px 0 0;
+  color: #6b7280;
+}
+
+button {
+  height: 34px;
+  padding: 0 16px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #111827;
+  font: 700 13px/1 Arial, sans-serif;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  background: #f9fafb;
+}
+
+button:disabled {
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.auto-block-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: #374151;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.primary-button {
+  border-color: #2563eb;
+  background: #2563eb;
+  color: #ffffff;
+  height: 40px;
+  padding: 0 20px;
+  font-size: 14px;
+}
+
+.primary-button:hover:not(:disabled) {
+  background: #1d4ed8;
+  border-color: #1d4ed8;
+}
+
+.primary-button:disabled {
+  background: #93c5fd;
+  border-color: #93c5fd;
+  color: #ffffff;
+  cursor: not-allowed;
+}
+
+.batch-status {
+  font-size: 13px;
+  color: #2563eb;
+  font-weight: 600;
+}
+
+/* ── 表格 ── */
+
+.table-wrap {
+  overflow: auto;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+table {
+  width: 100%;
+  min-width: 500px;
+  border-collapse: collapse;
+}
+
+th, td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #e5e7eb;
+  text-align: left;
+  vertical-align: middle;
+}
+
+th {
+  position: sticky;
+  top: 0;
+  background: #f9fafb;
+  color: #374151;
+  font-size: 12px;
+}
+
+td {
+  color: #1f2937;
+}
+
+tr.status-blocked td {
+  color: #9ca3af;
+}
+
+tr.status-blocked .account-name {
+  text-decoration: line-through;
+}
+
+.account-name {
+  font-weight: 700;
+}
+
+.history-account {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  color: inherit;
+}
+.history-account:hover .history-name {
+  text-decoration: underline;
+}
+
+.history-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.history-avatar-placeholder {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: #9ca3af;
+  flex-shrink: 0;
+}
+
+.history-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.history-handle {
+  font-size: 11px;
+  color: #6b7280;
+  margin-left: -4px;
+}
+
+.rules {
+  max-width: 200px;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.count-cell {
+  font-size: 13px;
+  font-weight: 700;
+  color: #374151;
+  text-align: center;
+}
+
+.date-cell {
+  font-size: 12px;
+  color: #6b7280;
+  white-space: nowrap;
+}
+
+.status-cell {
+  text-align: center;
+}
+
+.block-status {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.block-status.blocked {
+  color: #22c55e;
+}
+
+/* ── 空状态 ── */
+
+.empty-state {
+  display: none;
+  padding: 36px;
+  text-align: center;
+  color: #9ca3af;
+}
+
+/* ── 分页 ── */
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.pagination-btns {
+  display: flex;
+  gap: 6px;
+}
+
+#pageInfo {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+/* ── 关键词管理 ──*/
+
+.kw-section {
+  margin-top: 20px;
+  padding: 16px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.kw-section h3 {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+
+.kw-count {
+  font-weight: 400;
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.kw-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.kw-tab {
+  font-size: 12px;
+  padding: 4px 12px;
+  height: 30px;
+  border: 1px solid #d1d5db;
+  background: #f9fafb;
+  color: #374151;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.kw-tab.active {
+  background: #2563eb;
+  color: #ffffff;
+  border-color: #2563eb;
+}
+
+.kw-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+  min-height: 36px;
+  padding: 8px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: #f9fafb;
+}
+
+.kw-subtitle {
+  width: 100%;
+  font-size: 11px;
+  color: #9ca3af;
+  font-weight: 600;
+  margin-bottom: -2px;
+}
+
+.kw-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  font-size: 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #374151;
+}
+
+.kw-system {
+  background: #eef2ff;
+  border-color: #c7d2fe;
+  color: #4338ca;
+}
+
+.kw-chip .kw-del {
+  cursor: pointer;
+  color: #9ca3af;
+  font-size: 14px;
+  line-height: 1;
+  margin-left: 2px;
+}
+
+.kw-chip .kw-del:hover {
+  color: #ef4444;
+}
+
+.kw-empty {
+  width: 100%;
+  text-align: center;
+  color: #9ca3af;
+  font-size: 12px;
+  padding: 8px 0;
+}
+
+.kw-add {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.kw-add input {
+  flex: 1;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.kw-add select {
+  height: 34px;
+  padding: 0 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 13px;
+  background: #ffffff;
+  color: #374151;
+}
+
+#kwInfo {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+/* ── X 屏蔽列表 ── */
+
+.blocked-section {
+  margin-top: 20px;
+  padding: 16px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.blocked-section h3 {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+
+.blocked-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+#blockedStatus {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.blocked-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.blocked-item-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: #f9fafb;
+}
+
+.blocked-avatar-link {
+  flex-shrink: 0;
+  line-height: 0;
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+.blocked-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: block;
+}
+
+.blocked-avatar-placeholder {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  color: #9ca3af;
+  flex-shrink: 0;
+}
+
+.blocked-info-block {
+  flex: 1;
+  min-width: 0;
+  text-decoration: none;
+  color: inherit;
+}
+.blocked-info-block:hover .blocked-name {
+  text-decoration: underline;
+}
+
+.blocked-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #111827;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.blocked-handle-row {
+  font-size: 11px;
+  color: #6b7280;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.blocked-handle-followers {
+  color: #f59e0b;
+  font-weight: 600;
+}
+
+.unblock-btn {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  background: #ffffff;
+  color: #ef4444;
+  font-size: 11px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.unblock-btn:hover:not(:disabled) {
+  background: #fef2f2;
+  border-color: #ef4444;
+}
+.unblock-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.blocked-pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.blocked-page-btn {
+  padding: 4px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  background: #ffffff;
+  color: #374151;
+  font-size: 12px;
+  cursor: pointer;
+}
+.blocked-page-btn:hover:not(:disabled) {
+  background: #f3f4f6;
+}
+.blocked-page-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.blocked-page-info {
+  font-size: 12px;
+  color: #6b7280;
+}

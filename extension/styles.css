@@ -1,0 +1,43 @@
+.mv3-train-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 20px;
+  margin-left: 4px;
+  padding: 0 6px;
+  border: 1px solid #f59e0b;
+  border-radius: 4px;
+  background: #fef3c7;
+  color: #92400e;
+  font: 600 11px/1 Arial, sans-serif;
+  cursor: pointer;
+  vertical-align: middle;
+}
+
+.mv3-train-btn:hover:not(:disabled) {
+  background: #fde68a;
+  border-color: #d97706;
+}
+
+.mv3-train-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* — 标注 SpamEngine 标记为垃圾的回复 — */
+.flagged-spam {
+  border-left: 3px solid #f59e0b !important;
+}
+
+.mv3-twitter-blocked-account {
+  display: none !important;
+}
+
+.mv3-twitter-garbage-hidden {
+  display: none !important;
+}
+
+.mv3-twitter-ad-hidden {
+  display: none !important;
+}

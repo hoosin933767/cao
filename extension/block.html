@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>X 工具</title>
+    <link rel="stylesheet" href="block.css">
+  </head>
+  <body>
+    <main class="page">
+      <header class="page-header">
+        <div>
+          <h1>屏蔽记录</h1>
+          <p id="historySummary">加载中…</p>
+        </div>
+        <div class="header-actions">
+          <label class="auto-block-toggle">
+            <span>自动屏蔽</span>
+            <input id="autoBlockToggle" type="checkbox" checked>
+          </label>
+        </div>
+      </header>
+
+      <section class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>账号</th>
+              <th style="width:110px">屏蔽时间</th>
+            </tr>
+          </thead>
+          <tbody id="historyBody"></tbody>
+        </table>
+        <div id="historyEmpty" class="empty-state">暂无屏蔽记录</div>
+      </section>
+
+      <footer class="pagination">
+        <span id="historyPageInfo"></span>
+        <div class="pagination-btns">
+          <button id="historyPrevBtn" type="button">上</button>
+          <button id="historyNextBtn" type="button">下</button>
+        </div>
+      </footer>
+
+      <section class="kw-section">
+        <h3>关键词管理 <span id="kwCount" class="kw-count">(0)</span></h3>
+        <p id="kwInfo">系统内置关键词（蓝色）为固定规则，自定义关键词（白色）可手动添加或删除。</p>
+        <div class="kw-tabs" id="kwTabs">
+          <button class="kw-tab active" data-cat="adultStrong">成人强 (+2)</button>
+          <button class="kw-tab" data-cat="adultWeak">成人弱 (+2)</button>
+          <button class="kw-tab" data-cat="promo">推广 (+2)</button>
+          <button class="kw-tab" data-cat="redirect">引流 (+2)</button>
+        </div>
+        <div class="kw-list" id="kwList"><div class="kw-empty">加载中…</div></div>
+        <div class="kw-add">
+          <input id="kwInput" type="text" placeholder="输入新关键词">
+          <select id="kwCategory">
+            <option value="adultStrong">成人强</option>
+            <option value="adultWeak">成人弱</option>
+            <option value="promo">推广</option>
+            <option value="redirect">引流</option>
+          </select>
+          <button id="kwAddBtn" type="button">添加</button>
+        </div>
+      </section>
+
+      <section class="blocked-section">
+        <h3>X 屏蔽列表 <span id="blockedCount">(0)</span></h3>
+        <div class="blocked-actions">
+          <button id="syncBlockedBtn" type="button">从 X 同步屏蔽列表</button>
+          <span id="blockedStatus"></span>
+        </div>
+        <div id="blockedList" class="blocked-list"><div class="kw-empty">暂无数据</div></div>
+      </section>
+
+    </main>
+    <script src="block.js"></script>
+  </body>
+</html>

@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CAO — Clean Accounts Optimizer</title>
+  <meta name="description" content="全自动识别并隐藏 X/Twitter 上的广告推荐和垃圾内容，装上一键屏蔽。">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+      background: #0a0a0a;
+      color: #e5e7eb;
+      line-height: 1.6;
+    }
+    .container { max-width: 720px; margin: 0 auto; padding: 60px 24px; }
+    .logo {
+      font-size: 48px; font-weight: 800; letter-spacing: -1px;
+      background: linear-gradient(135deg, #60a5fa, #a78bfa);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      margin-bottom: 8px;
+    }
+    .subtitle {
+      font-size: 16px; color: #9ca3af; margin-bottom: 48px;
+    }
+    .hero { text-align: center; margin-bottom: 60px; }
+    .tagline {
+      font-size: 20px; color: #d1d5db; margin-bottom: 32px;
+      line-height: 1.7;
+    }
+    .features {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+      margin-bottom: 48px;
+    }
+    .feature {
+      background: #1a1a2e; border: 1px solid #2d2d44; border-radius: 12px;
+      padding: 24px; text-align: center;
+    }
+    .feature-icon { font-size: 32px; margin-bottom: 8px; }
+    .feature-title { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+    .feature-desc { font-size: 13px; color: #9ca3af; }
+    .btn {
+      display: inline-block; padding: 14px 40px; border-radius: 10px;
+      font-size: 16px; font-weight: 700; text-decoration: none; cursor: pointer;
+      transition: transform .15s;
+    }
+    .btn:hover { transform: translateY(-2px); }
+    .btn-primary {
+      background: linear-gradient(135deg, #60a5fa, #a78bfa); color: #fff;
+    }
+    .btn-secondary {
+      background: #1a1a2e; color: #d1d5db; border: 1px solid #2d2d44;
+    }
+    .download-section { text-align: center; margin-bottom: 48px; }
+    .download-section p { color: #9ca3af; font-size: 14px; margin-top: 12px; }
+    .usage {
+      background: #1a1a2e; border: 1px solid #2d2d44; border-radius: 12px;
+      padding: 32px; margin-bottom: 48px;
+    }
+    .usage h3 { font-size: 18px; margin-bottom: 16px; }
+    .usage ol { padding-left: 20px; color: #d1d5db; font-size: 14px; }
+    .usage li { margin-bottom: 8px; }
+    .usage code {
+      background: #2d2d44; color: #a5b4fc; padding: 2px 8px; border-radius: 4px;
+      font-size: 13px;
+    }
+    .footer { text-align: center; color: #6b7280; font-size: 13px; padding: 24px 0; }
+    .footer a { color: #60a5fa; text-decoration: none; }
+    .footer a:hover { text-decoration: underline; }
+    @media (max-width: 600px) {
+      .features { grid-template-columns: 1fr; }
+      .container { padding: 40px 16px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="hero">
+      <div class="logo">CAO</div>
+      <div class="subtitle">Clean Accounts Optimizer</div>
+      <div class="tagline">
+        让 X/Twitter 回归清净，装上一键屏蔽。<br>
+        广告推荐和垃圾内容自动消失，你不需要点任何按钮。
+      </div>
+    </div>
+
+    <div class="features">
+      <div class="feature">
+        <div class="feature-icon">🏆</div>
+        <div class="feature-title">自动化检测</div>
+        <div class="feature-desc">无需任何操作，装上一劳永逸</div>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">🔄</div>
+        <div class="feature-title">持续更新</div>
+        <div class="feature-desc">规则持续优化，越来越好用</div>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">☁️</div>
+        <div class="feature-title">多端共享</div>
+        <div class="feature-desc">账号数据跨设备同步</div>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">🔇</div>
+        <div class="feature-title">零操作</div>
+        <div class="feature-desc">安装即用，无需配置</div>
+      </div>
+    </div>
+
+    <div class="download-section">
+      <a class="btn btn-primary" href="cao-extension-v1.0.0.zip" download>下载扩展 v1.0.0</a>
+      <p>适用于 Chrome / Edge（支持 Manifest V3）</p>
+    </div>
+
+    <div class="usage">
+      <h3>📖 安装说明</h3>
+      <ol>
+        <li>下载上面的 <code>.zip</code> 文件并解压到任意文件夹</li>
+        <li>打开 Chrome → 地址栏输入 <code>chrome://extensions</code></li>
+        <li>打开右上角 <strong>开发者模式</strong></li>
+        <li>点击左上角 <strong>加载已解压的扩展程序</strong></li>
+        <li>选择解压后的文件夹</li>
+        <li>去 X.com 刷新，即可使用</li>
+      </ol>
+    </div>
+
+    <div class="footer">
+      <p>
+        Made by <a href="https://x.com/fuckxegg2" target="_blank">@fuckxegg2</a>
+        · <a href="https://github.com/hoosin933767/cao" target="_blank">GitHub</a>
+      </p>
+    </div>
+  </div>
+</body>
+</html>
