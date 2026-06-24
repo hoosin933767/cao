@@ -861,7 +861,7 @@
       var floater = document.createElement("div");
       floater.id = "cao-floater";
       floater.title = "CAO 屏蔽管理";
-      floater.innerHTML = '<svg viewBox="0 0 24 24"><circle class="clover-leaf" cx="12" cy="5" r="4.5"/><circle class="clover-leaf" cx="5" cy="12" r="4.5"/><circle class="clover-leaf" cx="19" cy="12" r="4.5"/><circle class="clover-leaf" cx="12" cy="19" r="4.5"/></svg>';
+      floater.innerHTML = '<svg viewBox="0 0 24 24"><circle class="clover" cx="12" cy="6" r="5"/><circle class="clover" cx="5.5" cy="16" r="5"/><circle class="clover" cx="18.5" cy="16" r="5"/><path class="clover" d="M12 19 L12 23"/></svg>';
       floater.addEventListener("click", function() {
         var url = (chrome.runtime && chrome.runtime.getURL) ? chrome.runtime.getURL("block.html") : "";
         if (url) window.open(url, "_blank");
