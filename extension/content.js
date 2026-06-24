@@ -446,21 +446,6 @@
       }
 
       scanWithVectorDB().then(function() { injectReportButtons(); });
-      // 延迟重扫：X 的 React 流式渲染可能使部分 article 的 handle 链接延迟出现
-      window.clearTimeout(scanTimer);
-      scanTimer = window.setTimeout(function() { if (isTweetDetailPage()) scanWithVectorDB(); }, 2000);
-      // 滚动重扫：X 虚拟滚动按需渲染回复
-      window.removeEventListener("scroll", onScrollRescan);
-      window.addEventListener("scroll", onScrollRescan, { passive: true });
-      // 定时重扫：X 任何异步渲染兜底
-      if (!adRescanInterval) {
-        adRescanInterval = setInterval(function() {
-          if (isTweetDetailPage()) {
-            scanWithVectorDB();
-            injectReportButtons();
-          }
-        }, 3000);
-      }
       return;
     }
 
@@ -470,7 +455,6 @@
       if (mutationObserver) {
         mutationObserver.disconnect();
       }
-      window.removeEventListener("scroll", onScrollRescan);
       clearGarbageHiddenState(); // 清除之前详情页设置的隐藏类
 
       if (!adObserver) {
@@ -507,7 +491,6 @@
       if (adObserver) {
         adObserver.disconnect();
       }
-      window.removeEventListener("scroll", onScrollRescan);
       clearGarbageHiddenState();
     } else {
       // 非主页/详情页：断开所有 observer + 停止广告定时扫描
@@ -521,7 +504,6 @@
       if (adObserver) {
         adObserver.disconnect();
       }
-      window.removeEventListener("scroll", onScrollRescan);
       clearGarbageHiddenState();
     }
   }
@@ -598,17 +580,14 @@
     }
 
     const handleText = userNameRoot.querySelector('a[href*="/"] span')?.textContent || "";
-    // 手动遍历 DOM：textContent 拿不到 img[alt]，innerText 在某些浏览器也拿不到
-    // 改用递归遍历收集 text + img[alt]
-    var parts = [];
-    function collectText(el) {
-      if (el.nodeType === 3) { parts.push(el.textContent); }
-      else if (el.tagName === "IMG" && el.getAttribute("alt")) { parts.push(el.getAttribute("alt")); }
-      else { el.childNodes.forEach(collectText); }
-    }
-    userNameRoot.childNodes.forEach(collectText);
-    const allText = parts.join("").replace(/\s+/g, " ").trim();
-    const withoutHandle = allText.replace(/@[A-Za-z0-9_]{1,15}.*/, "").trim();
+    // innerHTML 还原 img[alt] 中的 emoji 字符，再剥掉其余标签
+    var html = userNameRoot.innerHTML;
+    var allText = html
+      .replace(/<img[^>]*alt="([^"]*)"[^>]*>/g, "$1")
+      .replace(/<[^>]+>/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+    var withoutHandle = allText.replace(/@[A-Za-z0-9_]{1,15}.*/, "").trim();
     return withoutHandle || handleText.trim();
   }
 
@@ -847,23 +826,11 @@
     });
   }
 
-  let scrollRescanTimer = null;
-  function onScrollRescan() {
-    if (!isTweetDetailPage()) return;
-    window.clearTimeout(scrollRescanTimer);
-    scrollRescanTimer = window.setTimeout(function() {
-      scanWithVectorDB();
-      injectReportButtons();
-    }, 600);
-  }
-
   async function scheduleScan() {
     if (!isTweetDetailPage()) return;
     window.clearTimeout(scanTimer);
-    scanTimer = window.setTimeout(async function() {
-      await scanWithVectorDB();
-      injectReportButtons();
-    }, 500);
+    await scanWithVectorDB();
+    injectReportButtons();
   }
 
   function scheduleAdScan() {
