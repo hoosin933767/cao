@@ -507,31 +507,38 @@ tbody tr:last-child td {
   overflow-y: auto;
 }
 
-.blocked-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 9px 4px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-}
-
-.blocked-item:last-child {
-  border-bottom: none;
-}
-
-.blocked-info {
+/* ===== History Avatars ===== */
+.history-account {
   display: flex;
   align-items: center;
   gap: 8px;
+  text-decoration: none;
+  color: inherit;
 }
 
-.blocked-handle {
-  font-size: 13px;
+.history-account:hover .history-name {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.history-name {
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.8);
+  color: #fff;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-/* ===== History Avatars ===== */
+.history-handle {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.date-cell {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
 .history-avatar,
 .blocked-avatar {
   width: 28px;
@@ -616,6 +623,49 @@ tbody tr:last-child td {
 .blocked-avatar-link {
   display: inline-flex;
   text-decoration: none;
+}
+
+.blocked-info-block {
+  display: flex;
+  flex-direction: column;
+  text-decoration: none;
+  color: inherit;
+  min-width: 0;
+}
+
+.blocked-info-block:hover .blocked-name {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.blocked-name {
+  font-weight: 500;
+  color: #fff;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.blocked-handle-row {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.35);
+  margin-top: 1px;
+}
+
+.blocked-handle-followers {
+  color: rgba(255, 255, 255, 0.2);
+}
+
+.blocked-item-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.blocked-item-wrap:last-child {
+  border-bottom: none;
 }
 
 /* ===== Scrollbar ===== */

@@ -188,12 +188,12 @@ body {
 }
 
 .footer-link {
-  color: rgba(255, 255, 255, 0.3);
+  color: rgba(255, 255, 255, 0.5);
   text-decoration: none;
   font-weight: 600;
   transition: color 0.2s;
 }
 
 .footer-link:hover {
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(255, 255, 255, 0.8);
 }
