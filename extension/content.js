@@ -940,7 +940,7 @@
       return { ok: true, noConfirm: true };
     }
     confirmBtn.click();
-    await sleep(500);
+    await sleep(200);
 
     return { ok: true };
   }

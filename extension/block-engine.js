@@ -199,8 +199,7 @@
       return { ok: false, error: "confirm button not found" };
     }
     confirmBtn.click();
-    await sleep(800);
-
+    await sleep(200);
     await saveBlockHistory(handle);
     return { ok: true };
   }
