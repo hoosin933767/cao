@@ -801,6 +801,8 @@
       if (myHandle && handle.toLowerCase() === myHandle) return;
       // 跳过已隐藏的（已处理过的）
       if (article.classList.contains(garbageHiddenClass)) return;
+      // 只给被标记为垃圾的回复加上报按钮
+      if (!article.classList.contains("flagged-spam")) return;
       var btn = document.createElement("button");
       btn.className = trainBtnClass;
       btn.type = "button";
