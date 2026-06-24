@@ -1147,6 +1147,16 @@
     }
   }
 
+  /** 打开自动屏蔽后，重新屏蔽所有已标记但尚未隐藏的账号 */
+  function processPendingAutoBlocks() {
+    const allArticles = document.querySelectorAll('article.flagged-spam');
+    for (const article of allArticles) {
+      const handle = getArticleHandle(article);
+      if (!handle || blockedAccounts.has(handle)) continue;
+      autoBlockAndHide(article, handle);
+    }
+  }
+
   /** 在指定的 article 中注入特征标签（无屏蔽按钮） */
   function injectFeatureBadge(article, handle, featureResult) {
     const userNameRoot = article.querySelector('[data-testid="User-Name"]');
@@ -1206,6 +1216,10 @@
       // block.html 切换自动屏蔽
       if (message.type === "MV3_AUTO_BLOCK_TOGGLE") {
         autoBlockEnabled = !!message.enabled;
+        if (autoBlockEnabled) {
+          // 打开自动屏蔽后，重新处理已标记 flagged-spam 但尚未屏蔽的账号
+          processPendingAutoBlocks();
+        }
         sendResponse({ ok: true });
         return true;
       }
