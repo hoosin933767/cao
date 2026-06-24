@@ -4,7 +4,7 @@
   // ── 屏蔽记录 ──
 
   const HISTORY_KEY = "mv3BlockHistory";
-  const HISTORY_PAGE_SIZE = 50;
+  const HISTORY_PAGE_SIZE = 20;
 
   const $historyBody = document.getElementById("historyBody");
   const $historyEmpty = document.getElementById("historyEmpty");
