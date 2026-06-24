@@ -452,6 +452,15 @@
       // 滚动重扫：X 虚拟滚动按需渲染回复
       window.removeEventListener("scroll", onScrollRescan);
       window.addEventListener("scroll", onScrollRescan, { passive: true });
+      // 定时重扫：X 任何异步渲染兜底
+      if (!adRescanInterval) {
+        adRescanInterval = setInterval(function() {
+          if (isTweetDetailPage()) {
+            scanWithVectorDB();
+            injectReportButtons();
+          }
+        }, 3000);
+      }
       return;
     }
 
