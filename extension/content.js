@@ -684,6 +684,12 @@
   /** 记录屏蔽历史（仅保留最近 MAX_BLOCK_HISTORY 条） */
   async function saveBlockHistory(handle, name, avatar) {
     try {
+      // 调试计数器
+      try {
+        var dbg = await chrome.storage.local.get("__cao_dbg_count");
+        var c = (dbg.__cao_dbg_count || 0) + 1;
+        await chrome.storage.local.set({ __cao_dbg_count: c, __cao_dbg_last: handle + "|" + Date.now() });
+      } catch (e) {}
       const d = await chrome.storage.local.get(blockHistoryKey);
       let list = d[blockHistoryKey] || [];
       list.unshift({ handle: handle.toLowerCase(), name: name || handle, avatar: avatar || "", blockedAt: Date.now() });
