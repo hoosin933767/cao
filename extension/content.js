@@ -598,8 +598,16 @@
     }
 
     const handleText = userNameRoot.querySelector('a[href*="/"] span')?.textContent || "";
-    // 用 innerText 替代 textContent，可以获取 img[alt] 中的 emoji 字符
-    const allText = userNameRoot.innerText.replace(/\s+/g, " ").trim();
+    // 手动遍历 DOM：textContent 拿不到 img[alt]，innerText 在某些浏览器也拿不到
+    // 改用递归遍历收集 text + img[alt]
+    var parts = [];
+    function collectText(el) {
+      if (el.nodeType === 3) { parts.push(el.textContent); }
+      else if (el.tagName === "IMG" && el.getAttribute("alt")) { parts.push(el.getAttribute("alt")); }
+      else { el.childNodes.forEach(collectText); }
+    }
+    userNameRoot.childNodes.forEach(collectText);
+    const allText = parts.join("").replace(/\s+/g, " ").trim();
     const withoutHandle = allText.replace(/@[A-Za-z0-9_]{1,15}.*/, "").trim();
     return withoutHandle || handleText.trim();
   }
