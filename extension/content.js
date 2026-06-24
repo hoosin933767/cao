@@ -314,19 +314,8 @@
   // ── 广告检测与隐藏 ──
 
   function isAdArticle(article) {
-    // 方法1: data-testid="placementTracking" 是 Twitter 官方标记，最可靠
+    // data-testid="placementTracking" 是 X 官方广告标记，最可靠
     if (article.querySelector('[data-testid="placementTracking"]')) return true;
-
-    // 方法2: 查找广告标签文本（只在推文正文之外查找独立的短标签）
-    const tweetBody = article.querySelector('[data-testid="tweetText"]');
-    const walker = document.createTreeWalker(article, NodeFilter.SHOW_TEXT);
-    while (walker.nextNode()) {
-      const node = walker.currentNode;
-      // 跳过推文正文内的文本（"广告"/"Promoted"/"推广" 可能出现在正常推文中）
-      if (tweetBody && tweetBody.contains(node)) continue;
-      const text = node.textContent.trim();
-      if (text === "广告" || text === "Promoted" || text === "已推广" || text === "推广") return true;
-    }
 
     return false;
   }
