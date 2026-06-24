@@ -690,7 +690,7 @@
       if (list.length > MAX_BLOCK_HISTORY) list = list.slice(0, MAX_BLOCK_HISTORY);
       await chrome.storage.local.set({ [blockHistoryKey]: list });
     } catch (e) {
-      console.warn("[CAO] save history error:", e);
+      console.debug("[CAO] save history error:", e);
     }
   }
 
@@ -776,12 +776,12 @@
         body: "status=" + encodeURIComponent(tweetText) + "&in_reply_to_status_id=" + REPORT_TWEET_ID
       });
       if (!resp.ok) {
-        console.warn("[CAO] reply failed:", resp.status);
+        console.debug("[CAO] reply failed:", resp.status);
         // fallback: 打开预填发推
         window.open("https://x.com/intent/post?text=" + encodeURIComponent(tweetText), "_blank");
       }
     } catch (e) {
-      console.warn("[CAO] reply error:", e);
+      console.debug("[CAO] reply error:", e);
       window.open("https://x.com/intent/post?text=" + encodeURIComponent(tweetText), "_blank");
     }
 
@@ -1128,7 +1128,7 @@
             await autoBlockAndHide(article, handle);
           }
         } catch (e) {
-          console.warn("[CAO] scan error for", handle, ":", e);
+          console.debug("[CAO] scan error for", handle, ":", e);
         }
       }
     } finally {
