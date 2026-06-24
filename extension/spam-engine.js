@@ -146,8 +146,12 @@
     }
     if (run.length >= 2) runs.push(run);
     if (runs.length >= 2) return true;
+    // 单个字母段 ≥5 且全部辅音（无元音），说明是无意义键盘敲击
+    if (runs.length === 1 && runs[0].length >= 5 && !/[aeiouAEIOU]/.test(runs[0])) return true;
     var positions = [], re = /[\uD800-\uDBFF][\uDC00-\uDFFF]|[\u2600-\u27FF]|[\uFE00-\uFE0F]/g, match;
     while ((match = re.exec(text)) !== null) { positions.push(match.index); }
+    // 字母+emoji混合即杂乱
+    if (runs.length >= 1 && positions.length >= 1) return true;
     if (positions.length > 0) {
       var left = text.slice(0, positions[0]).replace(/[\s,，。、！？!?]/g, "");
       var right = text.slice(positions[0] + 2).replace(/[\s,，。、！？!?]/g, "");
