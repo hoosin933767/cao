@@ -1119,12 +1119,14 @@
           let featureResult = null;
           if (replyText && replyText.length > 0) {
             const r = window.SpamEngine.detectScam(replyText, handle, pageAuthorHandle);
+            console.log("[CAO] detectScam reply:", handle, JSON.stringify(replyText), "→", r.score, r.isScam);
             if (r.isScam) { featureResult = r; }
           }
 
           // 2. 名字特征检测
           if (!featureResult && displayName) {
             const r = window.SpamEngine.detectScam(displayName, handle, pageAuthorHandle);
+            console.log("[CAO] detectScam name:", handle, JSON.stringify(displayName), "→", r.score, r.isScam);
             if (r.isScam) { featureResult = r; }
           }
 
