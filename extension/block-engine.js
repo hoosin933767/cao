@@ -28,6 +28,8 @@
   const SUSPENDED_KEY = "mv3SuspendedAccounts";
   const PENDING_BLOCK_KEY = "mv3PendingBlock";
   const PENDING_BATCH_KEY = "mv3PendingBatch";
+  const BLOCK_HISTORY_KEY = "mv3BlockHistory";
+  const MAX_BLOCK_HISTORY = 100;
   const NAV_HELPER_URL =
     (typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.getURL)
       ? chrome.runtime.getURL("nav-helper.js")
@@ -40,6 +42,17 @@
   let onChangeCallback = null;
   function notifyChanged() {
     if (onChangeCallback) onChangeCallback();
+  }
+
+  async function saveBlockHistory(handle) {
+    try {
+      const d = await chrome.storage.local.get({ [BLOCK_HISTORY_KEY]: [] });
+      const list = d[BLOCK_HISTORY_KEY] || [];
+      list.unshift({ handle: handle.toLowerCase(), name: handle, avatar: "", blockedAt: Date.now() });
+      if (list.length > MAX_BLOCK_HISTORY) list.length = MAX_BLOCK_HISTORY;
+      await chrome.storage.local.set({ [BLOCK_HISTORY_KEY]: list });
+    } catch (e) {
+    }
   }
 
   // ── 工具 ──
@@ -187,6 +200,7 @@
     confirmBtn.click();
     await sleep(800);
 
+    await saveBlockHistory(handle);
     return { ok: true };
   }
 
