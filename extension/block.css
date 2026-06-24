@@ -169,8 +169,8 @@ body {
 }
 
 .toggle-switch input:checked + .toggle-slider {
-  background: rgba(255, 255, 255, 0.2);
-  border-color: rgba(255, 255, 255, 0.3);
+  background: #22c55e;
+  border-color: #22c55e;
 }
 
 .toggle-switch input:checked + .toggle-slider::before {
