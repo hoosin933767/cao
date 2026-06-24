@@ -295,7 +295,7 @@
       return;
     }
     if (!isTweetDetailPage()) return;
-    document.querySelectorAll('article[data-testid="tweet"]').forEach((article, index) => {
+    document.querySelectorAll('article').forEach((article, index) => {
         if (isTweetDetailPage() && index === 0) return;
         const handle = getArticleHandle(article);
       if (!handle) return;
@@ -790,7 +790,7 @@
   function injectReportButtons() {
     if (!isTweetDetailPage()) return;
     var myHandle = getMyHandle();
-    document.querySelectorAll('article[data-testid="tweet"]').forEach(function(article, index) {
+    document.querySelectorAll('article').forEach(function(article, index) {
       if (index === 0) return; // 跳过主推文
       var userNameRoot = article.querySelector('[data-testid="User-Name"]');
       if (!userNameRoot || userNameRoot.querySelector("." + trainBtnClass)) return;
@@ -987,7 +987,7 @@
   }
 
   function findArticleByHandle(handle) {
-    const articles = document.querySelectorAll('article[data-testid="tweet"]');
+    const articles = document.querySelectorAll('article');
     for (const article of articles) {
       const h = getArticleHandle(article);
       if (h && h.toLowerCase() === handle.toLowerCase()) return article;
