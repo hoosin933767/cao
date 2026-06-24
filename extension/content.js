@@ -449,6 +449,9 @@
       // 延迟重扫：X 的 React 流式渲染可能使部分 article 的 handle 链接延迟出现
       window.clearTimeout(scanTimer);
       scanTimer = window.setTimeout(function() { if (isTweetDetailPage()) scanWithVectorDB(); }, 2000);
+      // 滚动重扫：X 虚拟滚动按需渲染回复
+      window.removeEventListener("scroll", onScrollRescan);
+      window.addEventListener("scroll", onScrollRescan, { passive: true });
       return;
     }
 
@@ -458,6 +461,7 @@
       if (mutationObserver) {
         mutationObserver.disconnect();
       }
+      window.removeEventListener("scroll", onScrollRescan);
       clearGarbageHiddenState(); // 清除之前详情页设置的隐藏类
 
       if (!adObserver) {
@@ -494,6 +498,7 @@
       if (adObserver) {
         adObserver.disconnect();
       }
+      window.removeEventListener("scroll", onScrollRescan);
       clearGarbageHiddenState();
     } else {
       // 非主页/详情页：断开所有 observer + 停止广告定时扫描
@@ -507,6 +512,7 @@
       if (adObserver) {
         adObserver.disconnect();
       }
+      window.removeEventListener("scroll", onScrollRescan);
       clearGarbageHiddenState();
     }
   }
@@ -822,6 +828,16 @@
       });
       userNameRoot.appendChild(btn);
     });
+  }
+
+  let scrollRescanTimer = null;
+  function onScrollRescan() {
+    if (!isTweetDetailPage()) return;
+    window.clearTimeout(scrollRescanTimer);
+    scrollRescanTimer = window.setTimeout(function() {
+      scanWithVectorDB();
+      injectReportButtons();
+    }, 600);
   }
 
   async function scheduleScan() {
