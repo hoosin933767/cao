@@ -57,22 +57,23 @@
 
 #cao-floater {
   position: fixed;
-  bottom: 140px;
-  right: 20px;
+  bottom: 76px;
+  right: 16px;
   z-index: 999999;
-  width: 42px;
-  height: 42px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   background: rgba(255,255,255,0.08);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  border: 0.5px solid rgba(255,255,255,0.2);
+  border: 1px solid rgba(0,0,0,0.4);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: all 0.3s;
   user-select: none;
+  overflow: hidden;
 }
 
 #cao-floater:hover {
@@ -80,20 +81,10 @@
   transform: scale(1.1);
 }
 
-#cao-floater .cao-text {
-  font-size: 14px;
-  font-weight: 800;
-  letter-spacing: 1px;
-  color: rgba(255,255,255,0.55);
-  -webkit-text-stroke: 0.5px rgba(0,0,0,0.5);
-  text-stroke: 0.5px rgba(0,0,0,0.5);
-  user-select: none;
-}
-
-#cao-floater.active .cao-text {
-  color: #22c55e;
-  -webkit-text-stroke: 0.5px #22c55e;
-  text-stroke: 0.5px #22c55e;
+#cao-floater img {
+  width: 26px;
+  height: 26px;
+  display: block;
 }
 
 #cao-floater.ca-breathe {

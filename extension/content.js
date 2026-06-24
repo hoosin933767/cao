@@ -861,18 +861,13 @@
       var floater = document.createElement("div");
       floater.id = "cao-floater";
       floater.title = "CAO 屏蔽管理";
-      floater.innerHTML = '<span class="cao-text">CAO</span>';
+      var iconData = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAACj0lEQVR4nO2VX0hTcRTHP+dupjOjEEcEIb2FZYRQBEEPPRZuiemiiMAeDHoxk5pY0KACJ0RQD1HQU73oHWguS5JIgqgnIYuK6iUhKhFEi3S13dPLJte5f22LXnbgwjnnnvM9H36/3/1dIW6nBpvWuZxldTELt6CVCr8cGN8WIzpx1Wcu8I9M/OGWY6j0AJvT1EQUHotFd7DJfFVsAMNFJAT6MkNNucB+DJ733D9UX3SAgCf8c/ZL9VGEJ1lqV0ct63yxASThdIUP1ziJTqJsyNihhDDoCnrMqaICAPiHW/aBjCTnU9iMYnj6vP0vCgUw7EHQG3ooopdy6KsRrDH/8MGtRQUA6G0MXRDRi4CV9GoW+GCLq8Aw22+2lxUCkHap/UMtuzHoAGlAeA/GuUg08qncUTYG7FgqVE4GD5g3UmmcveddI7pqGwZuFapUmRMcM5WL1uuAz/yRESAtWLi1FuUd4Iqn3ga95pZlgx80b5SocQWkGXCmkLFQJkXlzIotyGZBjzklwm1bqs5+P3SOtlZL1PEMxJdmOIAhok8r1k6P/zUAgEK/PY7FrD0JvzyibUBtFolHFRP1nYG949H8AKzI8ptTpM7mb8/SPq/qaAsEAhbkcQYS5h9u/Qqsjw81XVXTRxbm3UGEzky6KtLR5xm4lojT7VEuNrUEoLpp4bvbRGjK1KAw2tc4cN2eyx9A+I0uRTvjT6bh/ZWyeByxdRUCIBYxTb3QUVHtBqNBRXcpfDSEW8FGcyh5eEEAmkIMiIng6/WGBnPVyesrAFBwrISS070eM+fhBQGIJJ10YcR+uv85QNLwOSecyKe1KACqvLnsMT//N4BCrARQAigBlADy/x0jdyxUAQyRu/nq/AEHCdGWymvi9wAAAABJRU5ErkJggg==";
+      floater.innerHTML = '<img src="' + iconData + '" alt="CAO">';
       floater.addEventListener("click", function() {
         var url = (chrome.runtime && chrome.runtime.getURL) ? chrome.runtime.getURL("block.html") : "";
         if (url) window.open(url, "_blank");
       });
       document.body.appendChild(floater);
-      // 已有屏蔽记录则直接显示绿色
-      chrome.storage.local.get({ [blockHistoryKey]: [] }).then(function(d) {
-        if ((d[blockHistoryKey] || []).length > 0) {
-          floater.classList.add("active");
-        }
-      });
     })();
   });
 
