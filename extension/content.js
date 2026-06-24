@@ -858,45 +858,6 @@
     // ── 创建浮动按钮 ──
     (function() {
       if (document.getElementById("cao-floater")) return;
-      // 找到右下角底部导航栏中的 Grok
-      function findBottomGrok() {
-        var all = document.querySelectorAll('a[href="/i/grok"], [data-testid="Grok"]');
-        var best = null, bestTop = -1;
-        for (var i = 0; i < all.length; i++) {
-          var r = all[i].getBoundingClientRect();
-          // 只看屏幕右半边的（避开左边侧边栏）
-          if (r.left < window.innerWidth / 2) continue;
-          if (r.top > bestTop) { bestTop = r.top; best = all[i]; }
-        }
-        return best;
-      }
-      // 兜底：找右下角最底部的按钮
-      function findBottomRightmostNav() {
-        var best = null, bestBottom = -1;
-        var navs = document.querySelectorAll('nav[role="navigation"] a[href], div[role="tablist"] a[href], header[role="banner"] a[href]');
-        for (var i = 0; i < navs.length; i++) {
-          var r = navs[i].getBoundingClientRect();
-          if (r.left < window.innerWidth / 2) continue;
-          if (r.bottom > bestBottom) { bestBottom = r.bottom; best = navs[i]; }
-        }
-        return best;
-      }
-      function positionFloater() {
-        var grokBtn = findBottomGrok() || findBottomRightmostNav();
-        if (!grokBtn) { floater.style.bottom = "100px"; return; }
-        var rect = grokBtn.getBoundingClientRect();
-        // CAO 放在 Grok 正上方，间距和 Grok 到它上方图标的间距一致
-        var parent = grokBtn.parentElement;
-        var prev = grokBtn.previousElementSibling || (parent ? parent.previousElementSibling : null);
-        var gap = 8;
-        if (prev) {
-          var prevRect = prev.getBoundingClientRect();
-          gap = rect.top - prevRect.bottom;
-        }
-        floater.style.bottom = (window.innerHeight - rect.top + gap) + "px";
-        // 水平对齐 Grok
-        floater.style.right = (window.innerWidth - rect.right) + "px";
-      }
       var floater = document.createElement("div");
       floater.id = "cao-floater";
       floater.title = "CAO 屏蔽管理";
@@ -907,10 +868,6 @@
         if (url) window.open(url, "_blank");
       });
       document.body.appendChild(floater);
-      // 等 DOM 稳定后定位，以及定期重新定位（SPA 导航时）
-      setTimeout(positionFloater, 500);
-      setTimeout(positionFloater, 1500);
-      setInterval(positionFloater, 2000);
     })();
   });
 
