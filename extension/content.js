@@ -683,20 +683,15 @@
 
   /** 记录屏蔽历史（仅保留最近 MAX_BLOCK_HISTORY 条） */
   async function saveBlockHistory(handle, name, avatar) {
-    console.warn("[CAO] saveBlockHistory called:", handle);
     try {
-      // 调试计数器
-      try {
-        var dbg = await chrome.storage.local.get("__cao_dbg_count");
-        var c = (dbg.__cao_dbg_count || 0) + 1;
-        await chrome.storage.local.set({ __cao_dbg_count: c, __cao_dbg_last: handle + "|" + Date.now() });
-      } catch (e) {}
       const d = await chrome.storage.local.get(blockHistoryKey);
       let list = d[blockHistoryKey] || [];
       list.unshift({ handle: handle.toLowerCase(), name: name || handle, avatar: avatar || "", blockedAt: Date.now() });
       if (list.length > MAX_BLOCK_HISTORY) list = list.slice(0, MAX_BLOCK_HISTORY);
       await chrome.storage.local.set({ [blockHistoryKey]: list });
-    } catch (e) {}
+    } catch (e) {
+      console.warn("[CAO] save history error:", e);
+    }
   }
 
   function isUserNameTextLink(link, handle) {
@@ -1125,7 +1120,6 @@
           }
 
           if (featureResult) {
-            console.warn("[CAO] FLAGGED:", handle, featureResult.score);
             article.classList.add("flagged-spam");
             injectFeatureBadge(article, handle, featureResult);
             // 记录检测结果（无论自动屏蔽是否开启）
@@ -1134,6 +1128,7 @@
             await autoBlockAndHide(article, handle);
           }
         } catch (e) {
+          console.warn("[CAO] scan error for", handle, ":", e);
         }
       }
     } finally {
