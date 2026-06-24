@@ -145,7 +145,11 @@
       else { if (run.length >= 2) runs.push(run); run = ""; }
     }
     if (run.length >= 2) runs.push(run);
-    if (runs.length >= 2) return true;
+    // 多个字母段 → 只要所有段都含元音（正常英文词），就不算杂乱
+    if (runs.length >= 2) {
+      var hasGibberish = runs.some(function(r) { return r.length >= 3 && !/[aeiouAEIOU]/.test(r); });
+      if (!hasGibberish) return false;
+    }
     // 单个字母段 ≥5 且全部辅音（无元音），说明是无意义键盘敲击
     if (runs.length === 1 && runs[0].length >= 5 && !/[aeiouAEIOU]/.test(runs[0])) return true;
     var positions = [], re = /[\uD800-\uDBFF][\uDC00-\uDFFF]|[\u2600-\u27FF]|[\uFE00-\uFE0F]/g, match;
