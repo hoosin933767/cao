@@ -242,10 +242,28 @@
           features.push({ k: "\u5f15\u6d41\u4fe1\u53f7", v: matchedRedirect, p: 1 });
         }
       }
+      // 纯 emoji 回复/名字：无文字内容本身就是可疑信号
+      if (isPureEmojiText(text)) { score += 1; features.push({ k: "\u7eafemoji", v: "", p: 1 }); }
+      // 含中文标点（名字中刻意插入逗号括号规避关键词匹配）
+      if (hasChinesePunct(text)) { score += 1; features.push({ k: "\u4e2d\u6587\u6807\u70b9", v: "", p: 1 }); }
     }
     if (handle && isHandleRandom(handle)) { score += 1; features.push({ k: "handle \u968f\u673a", v: handle, p: 1 }); }
     return { isScam: score >= 3, score: score, features: features, matchedKeyword: matchedKeyword, matchedRedirect: matchedRedirect };
   }
+
+  /** 检测文本是否只有 emoji（不含字母数字汉字） */
+  function isPureEmojiText(t) {
+    if (!t) return false;
+    var stripped = t.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]|[\u2600-\u27FF]|[\uFE00-\uFE0F]|[\u{1F000}-\u{1FFFF}]/gu, "").replace(/\s+/g, "").trim();
+    return stripped.length === 0;
+  }
+
+  /** 检测文本是否含中文标点（逗号/括号等） */
+  function hasChinesePunct(t) {
+    if (!t) return false;
+    return /[\u3000-\u303f\uff00-\uffef]/.test(t);
+  }
+
   var ready = false, readyCallbacks = [];
   async function init() {
     try {
