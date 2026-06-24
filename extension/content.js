@@ -683,6 +683,7 @@
 
   /** 记录屏蔽历史（仅保留最近 MAX_BLOCK_HISTORY 条） */
   async function saveBlockHistory(handle, name, avatar) {
+    console.warn("[CAO] saveBlockHistory called:", handle);
     try {
       // 调试计数器
       try {
@@ -756,7 +757,7 @@
         var list = d[storageKey] || [];
         if (!list.includes(handle)) { list.push(handle); await chrome.storage.local.set({ [storageKey]: list.sort() }); }
       } catch (e) {}
-      saveBlockHistory(handle, displayName, getArticleAvatar(article));
+      await saveBlockHistory(handle, displayName, getArticleAvatar(article));
       hideBlockedAccountsSoon();
     } else {
       return { ok: false, error: (blockResult && blockResult.error) || "屏蔽失败" };
@@ -985,7 +986,7 @@
               await chrome.storage.local.set({ [storageKey]: list.sort() });
             }
           } catch (e) {}
-          saveBlockHistory(handle, getArticleDisplayName(article), getArticleAvatar(article));
+          await saveBlockHistory(handle, getArticleDisplayName(article), getArticleAvatar(article));
         }
         await sleep(500);
       }
@@ -1124,6 +1125,7 @@
           }
 
           if (featureResult) {
+            console.warn("[CAO] FLAGGED:", handle, featureResult.score);
             article.classList.add("flagged-spam");
             injectFeatureBadge(article, handle, featureResult);
             // 记录检测结果（无论自动屏蔽是否开启）
