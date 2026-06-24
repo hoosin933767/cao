@@ -827,8 +827,10 @@
   async function scheduleScan() {
     if (!isTweetDetailPage()) return;
     window.clearTimeout(scanTimer);
-    await scanWithVectorDB();
-    injectReportButtons();
+    scanTimer = window.setTimeout(async function() {
+      await scanWithVectorDB();
+      injectReportButtons();
+    }, 500);
   }
 
   function scheduleAdScan() {
@@ -1075,7 +1077,6 @@
       const pageAuthorHandle = getPageTweetAuthorHandle();
       for (const article of allArticles) {
         const handle = getArticleHandle(article);
-        console.log("[CAO] scan article handle:", handle, "blocked:", blockedAccounts.has(handle), "suggested:", suggestedAccounts.has(handle), "isMain:", pageAuthorHandle && handle && handle.toLowerCase() === pageAuthorHandle);
         // 跳过自己、已屏蔽、已建议、以及主推文作者（url 中的 handle）
         if (!handle || blockedAccounts.has(handle) || suggestedAccounts.has(handle) || (myHandle && handle.toLowerCase() === myHandle) || (pageAuthorHandle && handle.toLowerCase() === pageAuthorHandle)) continue;
         const replyText = getArticleReplyText(article);
@@ -1086,11 +1087,6 @@
 
         try {
           const displayName = getArticleDisplayName(article);
-
-          // 调试：打印特定文章的传入参数
-          if (handle === "john70868730461" || handle === "jonathan147839") {
-            console.log("[CAO] DEBUG handle:", handle, "replyText:", JSON.stringify(replyText), "displayName:", JSON.stringify(displayName), "SpamEngine ready:", window.SpamEngine?.ready?.(), "SpamEngine:", typeof window.SpamEngine);
-          }
 
           // --- 特征检测 ---
 
@@ -1126,7 +1122,6 @@
             await autoBlockAndHide(article, handle);
           }
         } catch (e) {
-          console.error("[CAO] scan error for", handle, ":", e);
         }
       }
     } finally {
