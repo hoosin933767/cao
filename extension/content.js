@@ -621,6 +621,15 @@
     return "";
   }
 
+  /** 浮动按钮触发呼吸动画 */
+  function triggerFloaterBreath() {
+    var el = document.getElementById("cao-floater");
+    if (!el) return;
+    el.classList.remove("ca-breathe");
+    void el.offsetWidth; // reflow
+    el.classList.add("ca-breathe");
+  }
+
   /** 记录屏蔽历史（仅保留最近 MAX_BLOCK_HISTORY 条） */
   async function saveBlockHistory(handle, name, avatar) {
     try {
@@ -629,6 +638,7 @@
       list.unshift({ handle: handle.toLowerCase(), name: name || handle, avatar: avatar || "", blockedAt: Date.now() });
       if (list.length > MAX_BLOCK_HISTORY) list = list.slice(0, MAX_BLOCK_HISTORY);
       await chrome.storage.local.set({ [blockHistoryKey]: list });
+      triggerFloaterBreath();
     } catch (e) {
       console.warn("[CAO] saveBlockHistory error:", e);
     }
@@ -843,6 +853,20 @@
 
     hideBlockedArticles();
     scanAndHideAds();
+
+    // ── 创建浮动按钮 ──
+    (function() {
+      if (document.getElementById("cao-floater")) return;
+      var floater = document.createElement("div");
+      floater.id = "cao-floater";
+      floater.title = "CAO 屏蔽管理";
+      floater.innerHTML = '<svg viewBox="0 0 24 24"><text x="12" y="16.5" text-anchor="middle" fill="rgba(255,255,255,0.85)" font-size="13" font-weight="700" font-family="Arial,sans-serif">C</text></svg>';
+      floater.addEventListener("click", function() {
+        var url = (chrome.runtime && chrome.runtime.getURL) ? chrome.runtime.getURL("block.html") : "";
+        if (url) window.open(url, "_blank");
+      });
+      document.body.appendChild(floater);
+    })();
   });
 
   // ── 内联屏蔽：在当前推文详情页直接屏蔽（twitter-helper 方案）──
