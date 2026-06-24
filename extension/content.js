@@ -1086,6 +1086,11 @@
         try {
           const displayName = getArticleDisplayName(article);
 
+          // 调试：打印特定文章的传入参数
+          if (handle === "john70868730461" || handle === "jonathan147839") {
+            console.log("[CAO] DEBUG handle:", handle, "replyText:", JSON.stringify(replyText), "displayName:", JSON.stringify(displayName), "SpamEngine ready:", window.SpamEngine?.ready?.(), "SpamEngine:", typeof window.SpamEngine);
+          }
+
           // --- 特征检测 ---
 
           // 1. 内容特征检测（detectScam：成人词/引流/间杂/映射/杂乱）
@@ -1120,6 +1125,7 @@
             await autoBlockAndHide(article, handle);
           }
         } catch (e) {
+          console.error("[CAO] scan error for", handle, ":", e);
         }
       }
     } finally {
