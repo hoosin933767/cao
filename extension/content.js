@@ -858,20 +858,31 @@
     // ── 创建浮动按钮 ──
     (function() {
       if (document.getElementById("cao-floater")) return;
-      // 找到 Grok 按钮，获取其底部位置
+      // 找到最靠底部的 Grok 按钮（避开侧边栏顶部的链接）
+      function findBottomGrok() {
+        var all = document.querySelectorAll('a[href="/i/grok"], [data-testid="Grok"]');
+        var best = null, bestTop = -1;
+        for (var i = 0; i < all.length; i++) {
+          var r = all[i].getBoundingClientRect();
+          if (r.top > bestTop) { bestTop = r.top; best = all[i]; }
+        }
+        return best;
+      }
       function positionFloater() {
-        var grokBtn = document.querySelector('a[href="/i/grok"]') || document.querySelector('[data-testid="Grok"]');
-        if (!grokBtn) { floater.style.bottom = "136px"; return; }
+        var grokBtn = findBottomGrok();
+        if (!grokBtn) { floater.style.bottom = "100px"; return; }
         var rect = grokBtn.getBoundingClientRect();
-        // 找 Grok 上方最近的同级兄弟图标，计算间距
+        // CAO 放在 Grok 正上方，间距和 Grok 到它上方图标的间距一致
         var parent = grokBtn.parentElement;
         var prev = grokBtn.previousElementSibling || (parent ? parent.previousElementSibling : null);
-        var gap = 8; // 默认 8px
+        var gap = 8;
         if (prev) {
           var prevRect = prev.getBoundingClientRect();
           gap = rect.top - prevRect.bottom;
         }
         floater.style.bottom = (window.innerHeight - rect.top + gap) + "px";
+        // 水平对齐 Grok
+        floater.style.right = (window.innerWidth - rect.right) + "px";
       }
       var floater = document.createElement("div");
       floater.id = "cao-floater";
