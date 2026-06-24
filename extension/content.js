@@ -1075,6 +1075,7 @@
       const pageAuthorHandle = getPageTweetAuthorHandle();
       for (const article of allArticles) {
         const handle = getArticleHandle(article);
+        console.log("[CAO] scan article handle:", handle, "blocked:", blockedAccounts.has(handle), "suggested:", suggestedAccounts.has(handle), "isMain:", pageAuthorHandle && handle && handle.toLowerCase() === pageAuthorHandle);
         // 跳过自己、已屏蔽、已建议、以及主推文作者（url 中的 handle）
         if (!handle || blockedAccounts.has(handle) || suggestedAccounts.has(handle) || (myHandle && handle.toLowerCase() === myHandle) || (pageAuthorHandle && handle.toLowerCase() === pageAuthorHandle)) continue;
         const replyText = getArticleReplyText(article);
