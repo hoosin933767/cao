@@ -689,7 +689,7 @@
       list.unshift({ handle: handle.toLowerCase(), name: name || handle, avatar: avatar || "", blockedAt: Date.now() });
       if (list.length > MAX_BLOCK_HISTORY) list = list.slice(0, MAX_BLOCK_HISTORY);
       await chrome.storage.local.set({ [blockHistoryKey]: list });
-    } catch (e) { console.warn("[CAO] save history error:", e); }
+    } catch (e) {}
   }
 
   function isUserNameTextLink(link, handle) {
@@ -1119,8 +1119,7 @@
             article.classList.add("flagged-spam");
             injectFeatureBadge(article, handle, featureResult);
             // 记录检测结果（无论自动屏蔽是否开启）
-            console.log("[CAO] saving history for", handle);
-            saveBlockHistory(handle, displayName, getArticleAvatar(article));
+            await saveBlockHistory(handle, displayName, getArticleAvatar(article));
             // 自动屏蔽 + 自动隐藏
             await autoBlockAndHide(article, handle);
           }
