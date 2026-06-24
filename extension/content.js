@@ -679,6 +679,7 @@
       if (list.length > MAX_BLOCK_HISTORY) list = list.slice(0, MAX_BLOCK_HISTORY);
       await chrome.storage.local.set({ [blockHistoryKey]: list });
     } catch (e) {
+      console.warn("[CAO] saveBlockHistory error:", e);
     }
   }
 

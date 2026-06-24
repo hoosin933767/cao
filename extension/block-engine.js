@@ -52,6 +52,7 @@
       if (list.length > MAX_BLOCK_HISTORY) list.length = MAX_BLOCK_HISTORY;
       await chrome.storage.local.set({ [BLOCK_HISTORY_KEY]: list });
     } catch (e) {
+      console.warn("[BlockEngine] saveBlockHistory error:", e);
     }
   }
 

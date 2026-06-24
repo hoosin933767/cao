@@ -130,6 +130,17 @@
 
   function h(s) { const d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
 
+  // 监听 storage 变化，屏蔽历史更新时自动刷新
+  if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.onChanged) {
+    chrome.storage.onChanged.addListener(function(changes, areaName) {
+      if (areaName === "local" && changes[HISTORY_KEY]) {
+        history = changes[HISTORY_KEY].newValue || [];
+        historyPage = 1;
+        renderHistory();
+      }
+    });
+  }
+
   // ── 关键词管理 ──
 
   const CAT_LABELS = { adultStrong: "成人强", adultWeak: "成人弱", promo: "推广", redirect: "引流" };
