@@ -3,8 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>CAO · X Cleaner — X/Twitter 广告隐藏 & 垃圾屏蔽</title>
-  <meta name="description" content="CAO · X Cleaner — 全自动识别并隐藏 X/Twitter 上的广告推荐和垃圾内容，一键屏蔽。">
+  <title>CAO · X Cleaner</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -13,329 +12,97 @@
       color: #e5e7eb;
       line-height: 1.6;
     }
-    .container { max-width: 760px; margin: 0 auto; padding: 60px 24px; }
+    .container { max-width: 600px; margin: 0 auto; padding: 80px 24px; }
 
-    /* ── Hero ── */
-    .hero { text-align: center; margin-bottom: 60px; }
     .logo {
-      font-size: 52px; font-weight: 800; letter-spacing: -2px;
+      text-align: center;
+      font-size: 48px; font-weight: 800; letter-spacing: -2px;
       background: linear-gradient(135deg, #60a5fa, #a78bfa);
       -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-      margin-bottom: 6px;
+      margin-bottom: 4px;
     }
     .subtitle {
-      font-size: 16px; color: #9ca3af; margin-bottom: 24px;
-    }
-    .tagline {
-      font-size: 18px; color: #d1d5db; line-height: 1.8;
-    }
-
-    /* ── Sections ── */
-    .section-title {
       text-align: center;
-      font-size: 22px; font-weight: 700; margin-bottom: 28px;
+      font-size: 15px; color: #6b7280; margin-bottom: 32px;
     }
 
-    /* ── Feature Grid ── */
-    .features { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 56px; }
-    .feature {
-      background: #1a1a2e; border: 1px solid #2d2d44; border-radius: 12px;
-      padding: 24px;
+    .btn {
+      display: block; width: 100%;
+      padding: 16px; border-radius: 10px;
+      font-size: 16px; font-weight: 700; text-decoration: none;
+      text-align: center;
+      background: linear-gradient(135deg, #60a5fa, #a78bfa); color: #fff;
+      margin-bottom: 6px;
     }
-    .feature-icon { font-size: 28px; margin-bottom: 10px; }
-    .feature-title { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
-    .feature-desc { font-size: 13px; color: #9ca3af; line-height: 1.7; }
+    .btn:hover { opacity: .85; }
+    .btn-meta {
+      text-align: center; font-size: 12px; color: #6b7280;
+      margin-bottom: 24px;
+    }
 
-    /* ── Detail Cards ── */
-    .detail-card {
-      background: #1a1a2e; border: 1px solid #2d2d44; border-radius: 12px;
-      padding: 28px; margin-bottom: 20px;
-    }
-    .detail-card h3 {
-      font-size: 16px; font-weight: 700; margin-bottom: 12px;
-      display: flex; align-items: center; gap: 8px;
-    }
-    .detail-card ul { padding-left: 18px; color: #d1d5db; font-size: 14px; }
-    .detail-card li { margin-bottom: 8px; }
-    .detail-card li strong { color: #f0f0f0; }
-    .detail-card code {
-      background: #2d2d44; color: #a5b4fc; padding: 1px 6px; border-radius: 4px;
-      font-size: 12px;
-    }
-    .detail-card .tag {
-      display: inline-block; padding: 2px 8px; border-radius: 4px;
-      font-size: 11px; font-weight: 700; margin-left: 6px;
-    }
-    .tag-auto { background: #065f46; color: #6ee7b7; }
-    .tag-manual { background: #1e3a5f; color: #93c5fd; }
+    .divider { text-align: center; color: #2d2d44; font-size: 18px; margin: 28px 0; }
 
-    /* ── Install Steps ── */
-    .install-steps {
-      counter-reset: step;
+    ol {
       list-style: none; padding: 0;
     }
-    .install-steps li {
+    ol li {
       counter-increment: step;
-      display: flex; align-items: flex-start; gap: 14px;
-      padding: 16px 0; border-bottom: 1px solid #2d2d44;
+      display: flex; gap: 14px;
+      padding: 16px 0; border-bottom: 1px solid #1f1f1f;
+      font-size: 14px; color: #d1d5db;
     }
-    .install-steps li:last-child { border-bottom: none; }
-    .install-steps li::before {
+    ol li:last-child { border-bottom: none; }
+    ol li::before {
       content: counter(step);
       flex-shrink: 0;
-      width: 28px; height: 28px;
+      width: 26px; height: 26px;
       border-radius: 50%;
-      background: linear-gradient(135deg, #60a5fa, #a78bfa);
-      color: #fff;
+      background: #1f1f1f;
+      color: #9ca3af;
       display: flex; align-items: center; justify-content: center;
-      font-size: 13px; font-weight: 700;
+      font-size: 12px; font-weight: 600;
     }
-    .install-steps li div { padding-top: 3px; }
-    .install-steps li div strong { display: block; font-size: 14px; margin-bottom: 2px; }
-    .install-steps li div span { font-size: 13px; color: #9ca3af; }
-    .install-steps code {
-      background: #2d2d44; color: #a5b4fc; padding: 1px 6px; border-radius: 4px;
+    ol li div { padding-top: 2px; }
+    code {
+      background: #1f1f1f; color: #a5b4fc; padding: 1px 6px; border-radius: 4px;
       font-size: 12px;
     }
 
-    /* ── Buttons ── */
-    .btn {
-      display: inline-block; padding: 14px 44px; border-radius: 10px;
-      font-size: 16px; font-weight: 700; text-decoration: none;
-      transition: transform .15s, box-shadow .15s;
-    }
-    .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(96,165,250,.25); }
-    .btn-primary {
-      background: linear-gradient(135deg, #60a5fa, #a78bfa); color: #fff;
-    }
-    .download-section { text-align: center; margin-bottom: 48px; }
-    .download-section .version {
-      font-size: 13px; color: #6b7280; margin-top: 10px;
-    }
-    .download-section .browsers {
-      font-size: 13px; color: #9ca3af; margin-top: 4px;
-    }
-
-    /* ── Divider ── */
-    .divider {
-      text-align: center; margin: 48px 0; color: #2d2d44;
-      font-size: 28px;
-    }
-
-    /* ── Screenshot placeholder ── */
-    .screenshot-placeholder {
-      background: #1a1a2e; border: 1px dashed #2d2d44; border-radius: 12px;
-      padding: 48px; text-align: center; color: #6b7280; font-size: 14px;
-      margin-bottom: 32px;
-    }
-
-    /* ── Footer ── */
-    .footer { text-align: center; color: #6b7280; font-size: 13px; padding: 32px 0; }
-    .footer a { color: #60a5fa; text-decoration: none; }
-    .footer a:hover { text-decoration: underline; }
+    .footer { text-align: center; color: #6b7280; font-size: 12px; padding: 40px 0; }
+    .footer a { color: #6b7280; text-decoration: none; }
+    .footer a:hover { color: #9ca3af; }
 
     @media (max-width: 600px) {
-      .features { grid-template-columns: 1fr; }
-      .container { padding: 40px 16px; }
-      .logo { font-size: 38px; }
+      .container { padding: 48px 20px; }
+      .logo { font-size: 36px; }
     }
   </style>
 </head>
 <body>
   <div class="container">
 
-    <!-- ═══ Hero ═══ -->
-    <div class="hero">
-      <div class="logo">CAO</div>
-      <div class="subtitle">X Cleaner</div>
-      <div class="tagline">
-        让 X/Twitter 回归清净 —— 广告消失、垃圾隐藏、一键屏蔽。
-      </div>
-    </div>
+    <div class="logo">CAO</div>
+    <div class="subtitle">X Cleaner</div>
 
-    <!-- ═══ 核心功能一览 ═══ -->
-    <div class="features">
-      <div class="feature">
-        <div class="feature-icon">🤖</div>
-        <div class="feature-title">自动屏蔽垃圾</div>
-        <div class="feature-desc">综合特征引擎，检测成人内容、引流、拼接词、混杂文案、随机 handle，自动屏蔽 + 隐藏回复</div>
-      </div>
-      <div class="feature">
-        <div class="feature-icon">🚫</div>
-        <div class="feature-title">隐藏广告推荐</div>
-        <div class="feature-desc">识别 X 的推广推文（Promoted），在时间线和详情页自动隐藏</div>
-      </div>
-      <div class="feature">
-        <div class="feature-icon">📋</div>
-        <div class="feature-title">关键词管理</div>
-        <div class="feature-desc">内置 60+ 系统规则，支持自定义添加 / 删除关键词，实时生效</div>
-      </div>
-      <div class="feature">
-        <div class="feature-icon">🛡️</div>
-        <div class="feature-title">一键上报</div>
-        <div class="feature-desc">系统漏检的垃圾，点「上报」即可屏蔽 + 推送给开发者</div>
-      </div>
-      <div class="feature">
-        <div class="feature-icon">📜</div>
-        <div class="feature-title">屏蔽记录</div>
-        <div class="feature-desc">查看已屏蔽账号（头像 + 名称），支持解除屏蔽、翻页</div>
-      </div>
-      <div class="feature">
-        <div class="feature-icon">🔼</div>
-        <div class="feature-title">从 X 同步</div>
-        <div class="feature-desc">一键同步 X 官方屏蔽列表，跨设备管理</div>
-      </div>
-    </div>
+    <a class="btn" href="extension/cao-extension-v1.0.0.zip" download>⬇ 下载 CAO v1.0.0</a>
+    <div class="btn-meta">ZIP · 36 KB · 适用于 Chrome / Edge</div>
 
-    <!-- ═══ 下载 ═══ -->
-    <div class="download-section">
-      <a class="btn btn-primary" href="extension/cao-extension-v1.0.0.zip" download>下载 CAO v1.0.0</a>
-      <div class="version">ZIP · 36 KB</div>
-      <div class="browsers">适用于 Chrome / Edge (Manifest V3)</div>
-    </div>
+    <div class="divider">· · ·</div>
 
-    <!-- ═══ 安装说明 ═══ -->
-    <h2 class="section-title">📦 安装说明</h2>
+    <h2 style="font-size:14px;font-weight:700;text-align:center;color:#9ca3af;margin-bottom:20px;">安装说明</h2>
 
-    <div class="detail-card">
-      <ol class="install-steps">
-        <li>
-          <div>
-            <strong>下载并解压</strong>
-            <span>点击上方按钮下载 <code>.zip</code> 文件，解压到任意文件夹</span>
-          </div>
-        </li>
-        <li>
-          <div>
-            <strong>打开扩展管理页</strong>
-            <span>Chrome 地址栏输入 <code>chrome://extensions</code> 回车</span>
-          </div>
-        </li>
-        <li>
-          <div>
-            <strong>开启开发者模式</strong>
-            <span>页面右上角切换「<strong>开发者模式</strong>」开关（打开后顶部会出现工具栏）</span>
-          </div>
-        </li>
-        <li>
-          <div>
-            <strong>加载扩展</strong>
-            <span>点击左上角「<strong>加载已解压的扩展程序</strong>」，选择解压后的文件夹</span>
-          </div>
-        </li>
-        <li>
-          <div>
-            <strong>确认安装成功</strong>
-            <span>列表中会出现 CAO 卡片，图标出现在浏览器工具栏右上方</span>
-          </div>
-        </li>
-        <li>
-          <div>
-            <strong>去 X 使用</strong>
-            <span>打开 <code>x.com</code> 刷新页面，如果已在打开中则刷新即可。广告和垃圾会自动消失</span>
-          </div>
-        </li>
-      </ol>
-    </div>
+    <ol>
+      <li><div>下载 <code>.zip</code> 文件，解压到任意文件夹</div></li>
+      <li><div>Chrome 地址栏输入 <code>chrome://extensions</code> 回车</div></li>
+      <li><div>打开右上角「<strong>开发者模式</strong>」</div></li>
+      <li><div>点击左上角「<strong>加载已解压的扩展程序</strong>」，选择解压后的文件夹</div></li>
+      <li><div>打开 <code>x.com</code> 刷新，广告和垃圾自动消失</div></li>
+    </ol>
 
-    <div class="divider">···</div>
-
-    <!-- ═══ 功能详解 ═══ -->
-    <h2 class="section-title">🛠️ 功能详解</h2>
-
-    <!-- 自动屏蔽 -->
-    <div class="detail-card">
-      <h3>🤖 自动屏蔽垃圾 <span class="tag tag-auto">自动</span></h3>
-      <ul>
-        <li>在<strong>推文详情页</strong>（<code>x.com/xxx/status/...</code>）自动检测每条回复</li>
-        <li>检测维度：<strong>成人关键词</strong>（强 +2 / 弱 +2）、<strong>推广词</strong>（+2）、<strong>引流信号</strong>（+2）、<strong>内容混杂度</strong>（+2）、<strong>随机 handle</strong>（+1）</li>
-        <li>总分 <strong>≥ 4</strong> 触发自动屏蔽 + 隐藏，无需任何操作</li>
-        <li>可在「屏蔽管理」页面关闭自动屏蔽</li>
-      </ul>
-    </div>
-
-    <!-- 隐藏广告 -->
-    <div class="detail-card">
-      <h3>🚫 隐藏广告 <span class="tag tag-auto">自动</span></h3>
-      <ul>
-        <li>在首页时间线和推文详情页自动识别并隐藏 X 的推广推文（Promoted）</li>
-        <li>支持滚动加载后增量扫描</li>
-        <li>可在 Popup 菜单开关</li>
-      </ul>
-    </div>
-
-    <!-- Popup -->
-    <div class="detail-card">
-      <h3>🔘 Popup 菜单 <span class="tag tag-manual">手动</span></h3>
-      <ul>
-        <li>点击浏览器工具栏的 CAO 图标打开</li>
-        <li>两个开关：<strong>隐藏广告</strong> / <strong>隐藏垃圾内容</strong></li>
-        <li>「<strong>屏蔽管理</strong>」按钮 → 打开管理页面（block.html）</li>
-      </ul>
-    </div>
-
-    <!-- 上报 -->
-    <div class="detail-card">
-      <h3>🛡️ 手动上报 <span class="tag tag-manual">手动</span></h3>
-      <ul>
-        <li>在推文详情页，每条回复下方均显示「<strong>上报</strong>」按钮</li>
-        <li>系统漏检的垃圾回复 → 点击「上报」→ <strong>自动屏蔽</strong> + 弹出预填@开发者推文（点 Post 发送）</li>
-        <li>仅在你认为<strong>系统没检测到</strong>的垃圾上使用</li>
-      </ul>
-    </div>
-
-    <!-- 关键词管理 -->
-    <div class="detail-card">
-      <h3>📋 关键词管理 <span class="tag tag-manual">手动</span></h3>
-      <ul>
-        <li>在「屏蔽管理」→ 关键词板块查看/管理</li>
-        <li>系统内置四大类：<strong>成人强</strong>（+2）、<strong>成人弱</strong>（+2）、<strong>推广</strong>（+2）、<strong>引流</strong>（+2）</li>
-        <li>支持自定义添加关键词，可选分类和分数</li>
-        <li>添加 / 删除后即时生效，无需刷新</li>
-      </ul>
-    </div>
-
-    <!-- 屏蔽管理 -->
-    <div class="detail-card">
-      <h3>📜 屏蔽记录与管理 <span class="tag tag-manual">手动</span></h3>
-      <ul>
-        <li>自动记录每次屏蔽，包含账号<strong>头像</strong>、<strong>昵称</strong>、<strong>handle</strong>、<strong>屏蔽时间</strong></li>
-        <li>支持点击头像/名称跳转到 X 账号主页</li>
-        <li>支持<strong>解除屏蔽</strong>（右侧按钮）</li>
-        <li>支持<strong>从 X 同步屏蔽列表</strong>，跨设备管理</li>
-        <li><strong>分页</strong>浏览，每页展示 20 条</li>
-      </ul>
-    </div>
-
-    <!-- 自动屏蔽开关 -->
-    <div class="detail-card">
-      <h3>🔛 自动屏蔽开关</h3>
-      <ul>
-        <li>「屏蔽管理」页面顶部的<strong>自动屏蔽</strong>开关</li>
-        <li>关闭后系统仅标记垃圾（显示特征标签），不会自动屏蔽</li>
-        <li>适合先观察规则是否误伤，确认后再开启</li>
-      </ul>
-    </div>
-
-    <div class="divider">···</div>
-
-    <!-- ═══ 隐私 ═══ -->
-    <h2 class="section-title">🔒 隐私说明</h2>
-    <div class="detail-card">
-      <ul>
-        <li>所有数据存储在<strong>本地浏览器</strong>（<code>chrome.storage.local</code>），不会上传到任何服务器</li>
-        <li>不需要登录、不需要 API Key、不收集任何个人信息</li>
-        <li>扩展仅操作 X/Twitter 页面 DOM，不会读取其他网站</li>
-        <li>源代码完全开源，可审计</li>
-      </ul>
-    </div>
-
-    <!-- ═══ Footer ═══ -->
     <div class="footer">
-      <p>
-        Made by <a href="https://x.com/fuckxegg2" target="_blank">@fuckxegg2</a>
-        · <a href="https://github.com/hoosin933767/cao" target="_blank">GitHub</a>
-      </p>
+      <a href="https://github.com/hoosin933767/cao" target="_blank">GitHub</a>
+      &nbsp;·&nbsp;
+      <a href="https://x.com/fuckxegg2" target="_blank">@fuckxegg2</a>
     </div>
 
   </div>
