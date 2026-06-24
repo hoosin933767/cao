@@ -21,7 +21,6 @@
   const blockHistoryKey = "mv3BlockHistory";
   const MAX_BLOCK_HISTORY = 100;
   const adAccountsStorageKey = "mv3AdTwitterAccounts";
-  const hideGarbageStorageKey = "mv3HideGarbageRepliesEnabled";
   const hideAdStorageKey = "mv3HideAdEnabled";
   const garbageHiddenClass = "mv3-twitter-garbage-hidden";
   var autoBlockEnabled = true;
@@ -59,7 +58,6 @@
           const autoHandles = Object.keys(accountsByHandle || {});
           sendResponse({
             hideAdEnabled,
-            hideGarbageEnabled,
             detectedCount: autoHandles.length,
             totalMergedCount: autoHandles.length,
             ...getCurrentXUser(),
@@ -72,17 +70,6 @@
         hideAdEnabled = message.enabled !== false;
         scanAndHideAds();
         settingsStorage.setHideAdEnabled(hideAdEnabled).then(() => {
-          sendResponse({ ok: true });
-        });
-        return true;
-      }
-
-      if (message.type === "MV3_POPUP_SET_HIDE_GARBAGE") {
-        hideGarbageEnabled = message.enabled !== false;
-        applyHideGarbageSetting();
-        injectReportButtons();
-        scanWithVectorDB();
-        settingsStorage.setHideGarbageEnabled(hideGarbageEnabled).then(() => {
           sendResponse({ ok: true });
         });
         return true;
@@ -133,28 +120,12 @@
   let scanTimer = null;
   let adRescanInterval = null;
   let currentUrl = window.location.href;
-  let hideGarbageEnabled = true;
   let hideAdEnabled = true;
   let adAccounts = new Map();
   let mutationObserver = null;
   let adObserver = null;
 
   const settingsStorage = {
-    async getHideGarbageEnabled() {
-      if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {
-        const result = await chrome.storage.local.get({ [hideGarbageStorageKey]: true });
-        return Boolean(result[hideGarbageStorageKey]);
-      }
-      return JSON.parse(window.localStorage.getItem(hideGarbageStorageKey) || "true");
-    },
-    async setHideGarbageEnabled(value) {
-      const normalizedValue = Boolean(value);
-      if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {
-        await chrome.storage.local.set({ [hideGarbageStorageKey]: normalizedValue });
-        return;
-      }
-      window.localStorage.setItem(hideGarbageStorageKey, JSON.stringify(normalizedValue));
-    },
     async getHideAdEnabled() {
       if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {
         const result = await chrome.storage.local.get({ [hideAdStorageKey]: true });
@@ -265,16 +236,6 @@
     });
   }
 
-  function hideGarbageArticle(article) {
-    article.classList.add(garbageHiddenClass);
-    article.dataset.caoHidden = "1";
-  }
-
-  function showGarbageArticle(article) {
-    article.removeAttribute("data-cao-hidden");
-    article.classList.remove(garbageHiddenClass);
-  }
-
   /**
    * 判断 article 是否为回复（评论），而非独立主推文
    * X 在每条回复上方显示 "Replying to @xxx" / "回复 @xxx" 标记
@@ -286,27 +247,17 @@
   }
 
 
-  function applyHideGarbageSetting() {
-    if (!hideGarbageEnabled) {
-      document.querySelectorAll("article[data-cao-hidden]").forEach((el) => {
-        el.removeAttribute("data-cao-hidden");
-        el.classList.remove(garbageHiddenClass);
-      });
-      return;
-    }
+  /** 隐藏已屏蔽账号的回复（始终生效） */
+  function hideBlockedArticles() {
     if (!isTweetDetailPage()) return;
     document.querySelectorAll('article').forEach((article, index) => {
-        if (isTweetDetailPage() && index === 0) return;
-        const handle = getArticleHandle(article);
+      if (index === 0) return;
+      const handle = getArticleHandle(article);
       if (!handle) return;
-      // 跳过自己的账号
       if (getMyHandle() && handle.toLowerCase() === getMyHandle()) return;
       if (blockedAccounts.has(handle)) {
         article.classList.add(garbageHiddenClass);
         article.dataset.caoHidden = "1";
-      } else {
-        article.removeAttribute("data-cao-hidden");
-        article.classList.remove(garbageHiddenClass);
       }
     });
   }
@@ -847,7 +798,6 @@
       });
     }
 
-    hideGarbageEnabled = await settingsStorage.getHideGarbageEnabled();
     hideAdEnabled = await settingsStorage.getHideAdEnabled();
 
     // 监听 storage 变化，同步 blockedAccounts（block-engine 解除屏蔽后同步）
@@ -891,7 +841,7 @@
       BlockEngine.onChanged = function () { hideBlockedAccountsSoon(); };
     }
 
-    applyHideGarbageSetting();
+    hideBlockedArticles();
     scanAndHideAds();
   });
 
@@ -1143,6 +1093,9 @@
           await chrome.storage.local.set({ [storageKey]: list.sort() });
         }
       } catch (e) {}
+      // 屏蔽成功后直接隐藏该回复
+      article.classList.add(garbageHiddenClass);
+      article.dataset.caoHidden = "1";
       hideBlockedAccountsSoon();
     }
   }

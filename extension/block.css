@@ -65,17 +65,6 @@ body {
   gap: 12px;
 }
 
-.auto-block-toggle {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  user-select: none;
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.6);
-  font-weight: 500;
-}
-
 /* ===== Tab Navigation ===== */
 .tab-nav {
   display: flex;

@@ -271,34 +271,6 @@
 
   loadKeywordsAndRender();
 
-  // ── 自动屏蔽开关 ──
-
-  const $autoBlockToggle = document.getElementById("autoBlockToggle");
-
-  async function loadAutoBlockSetting() {
-    try {
-      const data = await chrome.storage.local.get("mv3AutoBlock");
-      const enabled = data.mv3AutoBlock !== false;
-      $autoBlockToggle.checked = enabled;
-    } catch (e) {}
-  }
-
-  async function saveAutoBlockSetting(enabled) {
-    try {
-      await chrome.storage.local.set({ mv3AutoBlock: enabled });
-      const tabs = await chrome.tabs.query({ url: ["https://x.com/*", "https://twitter.com/*"] });
-      for (const tab of tabs) {
-        try { await chrome.tabs.sendMessage(tab.id, { type: "MV3_AUTO_BLOCK_TOGGLE", enabled }); } catch (e) {}
-      }
-    } catch (e) {}
-  }
-
-  $autoBlockToggle.addEventListener("change", function() {
-    saveAutoBlockSetting($autoBlockToggle.checked);
-  });
-
-  loadAutoBlockSetting();
-
   // ── X 屏蔽列表 ──
 
   const BLOCKED_CACHE_KEY = "mv3XBlockedCache";

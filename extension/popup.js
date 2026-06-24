@@ -1,12 +1,11 @@
 (function () {
   const hideAdCheckbox = document.getElementById("hideAdCheckbox");
-  const hideGarbageCheckbox = document.getElementById("hideGarbageCheckbox");
+  const autoBlockCheckbox = document.getElementById("autoBlockCheckbox");
   const reportBtn = document.getElementById("reportBtn");
 
   let currentTabId = null;
 
   const HIDE_AD_KEY = "mv3HideAdEnabled";
-  const HIDE_GARBAGE_KEY = "mv3HideGarbageRepliesEnabled";
 
   async function getCurrentTab() {
     const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -30,18 +29,18 @@
     const tab = await getCurrentTab();
     if (!tab) {
       hideAdCheckbox.disabled = true;
-      hideGarbageCheckbox.disabled = true;
+      autoBlockCheckbox.disabled = true;
       return;
     }
 
     hideAdCheckbox.disabled = false;
-    hideGarbageCheckbox.disabled = false;
+    autoBlockCheckbox.disabled = false;
 
     const settings = await chrome.storage.local.get({
-      [HIDE_GARBAGE_KEY]: true,
+      mv3AutoBlock: true,
       [HIDE_AD_KEY]: true,
     });
-    hideGarbageCheckbox.checked = settings[HIDE_GARBAGE_KEY] !== false;
+    autoBlockCheckbox.checked = settings.mv3AutoBlock !== false;
     hideAdCheckbox.checked = settings[HIDE_AD_KEY] !== false;
   }
 
@@ -51,10 +50,14 @@
     await sendMessage("MV3_POPUP_SET_HIDE_AD", { enabled });
   });
 
-  hideGarbageCheckbox.addEventListener("change", async () => {
-    const enabled = hideGarbageCheckbox.checked;
-    await chrome.storage.local.set({ [HIDE_GARBAGE_KEY]: enabled });
-    await sendMessage("MV3_POPUP_SET_HIDE_GARBAGE", { enabled });
+  autoBlockCheckbox.addEventListener("change", async () => {
+    const enabled = autoBlockCheckbox.checked;
+    await chrome.storage.local.set({ mv3AutoBlock: enabled });
+    // 通知所有 X tab（并非仅当前 tab），因为 block-engine.js 需要同步
+    const tabs = await chrome.tabs.query({ url: ["https://x.com/*", "https://twitter.com/*"] });
+    for (const tab of tabs) {
+      try { await chrome.tabs.sendMessage(tab.id, { type: "MV3_AUTO_BLOCK_TOGGLE", enabled }); } catch (e) {}
+    }
   });
 
   reportBtn.addEventListener("click", () => {
