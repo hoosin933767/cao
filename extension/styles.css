@@ -57,7 +57,7 @@
 
 #cao-floater {
   position: fixed;
-  bottom: 100px;
+  bottom: 300px;
   right: 20px;
   z-index: 999999;
   width: 40px;
