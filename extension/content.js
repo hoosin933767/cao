@@ -138,6 +138,7 @@
   let adAccounts = new Map();
   let mutationObserver = null;
   let adObserver = null;
+  let articlesNeedingRetry = [];
 
   const settingsStorage = {
     async getHideGarbageEnabled() {
@@ -1051,10 +1052,18 @@
       const allArticles = document.querySelectorAll('article[data-testid="tweet"]');
       const myHandle = await waitForMyHandle();
       const pageAuthorHandle = getPageTweetAuthorHandle();
+      var emptyHandleArticles = [];
       for (const article of allArticles) {
         const handle = getArticleHandle(article);
         // 跳过自己、已屏蔽、已建议、以及主推文作者（url 中的 handle）
-        if (!handle || blockedAccounts.has(handle) || suggestedAccounts.has(handle) || (myHandle && handle.toLowerCase() === myHandle) || (pageAuthorHandle && handle.toLowerCase() === pageAuthorHandle)) continue;
+        if (!handle) {
+          // User-Name 存在但 handle 为空 → React 流式渲染未完成，记下来重试
+          if (article.querySelector('[data-testid="User-Name"]')) {
+            emptyHandleArticles.push(article);
+          }
+          continue;
+        }
+        if (blockedAccounts.has(handle) || suggestedAccounts.has(handle) || (myHandle && handle.toLowerCase() === myHandle) || (pageAuthorHandle && handle.toLowerCase() === pageAuthorHandle)) continue;
         const replyText = getArticleReplyText(article);
         // 回复文本为空时不跳过，可能名字本身就是垃圾（如纯 emoji 回复）
 
@@ -1088,6 +1097,23 @@
         } catch (e) {
           // SpamEngine 可能还没完全就绪，跳过
         }
+      }
+      // 重试：流式渲染后 handle 还没出来的 article，排期重新扫
+      if (emptyHandleArticles.length > 0) {
+        // 和上次未处理的合并去重
+        articlesNeedingRetry = articlesNeedingRetry.concat(emptyHandleArticles)
+          .filter(function(a, i, arr) { return arr.indexOf(a) === i; });
+        // 如果已经重试 3 次以上，放弃（避免死循环）
+        if (!scanWithVectorDB.retryCount) scanWithVectorDB.retryCount = 0;
+        if (scanWithVectorDB.retryCount < 6) {
+          scanWithVectorDB.retryCount++;
+          window.clearTimeout(scanTimer);
+          scanTimer = window.setTimeout(function() {
+            scanWithVectorDB();
+          }, 800);
+        }
+      } else {
+        scanWithVectorDB.retryCount = 0;
       }
     } finally {
       vectorScanRunning = false;
