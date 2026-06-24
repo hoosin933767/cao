@@ -858,18 +858,31 @@
     // ── 创建浮动按钮 ──
     (function() {
       if (document.getElementById("cao-floater")) return;
-      // 找到最靠底部的 Grok 按钮（避开侧边栏顶部的链接）
+      // 找到右下角底部导航栏中的 Grok
       function findBottomGrok() {
         var all = document.querySelectorAll('a[href="/i/grok"], [data-testid="Grok"]');
         var best = null, bestTop = -1;
         for (var i = 0; i < all.length; i++) {
           var r = all[i].getBoundingClientRect();
+          // 只看屏幕右半边的（避开左边侧边栏）
+          if (r.left < window.innerWidth / 2) continue;
           if (r.top > bestTop) { bestTop = r.top; best = all[i]; }
         }
         return best;
       }
+      // 兜底：找右下角最底部的按钮
+      function findBottomRightmostNav() {
+        var best = null, bestBottom = -1;
+        var navs = document.querySelectorAll('nav[role="navigation"] a[href], div[role="tablist"] a[href], header[role="banner"] a[href]');
+        for (var i = 0; i < navs.length; i++) {
+          var r = navs[i].getBoundingClientRect();
+          if (r.left < window.innerWidth / 2) continue;
+          if (r.bottom > bestBottom) { bestBottom = r.bottom; best = navs[i]; }
+        }
+        return best;
+      }
       function positionFloater() {
-        var grokBtn = findBottomGrok();
+        var grokBtn = findBottomGrok() || findBottomRightmostNav();
         if (!grokBtn) { floater.style.bottom = "100px"; return; }
         var rect = grokBtn.getBoundingClientRect();
         // CAO 放在 Grok 正上方，间距和 Grok 到它上方图标的间距一致
