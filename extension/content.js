@@ -621,12 +621,13 @@
     return "";
   }
 
-  /** 浮动按钮触发呼吸动画 */
+  /** 浮动按钮触发呼吸动画 + 切换为绿色 */
   function triggerFloaterBreath() {
     var el = document.getElementById("cao-floater");
     if (!el) return;
+    el.classList.add("active");
     el.classList.remove("ca-breathe");
-    void el.offsetWidth; // reflow
+    void el.offsetWidth;
     el.classList.add("ca-breathe");
   }
 
@@ -860,12 +861,18 @@
       var floater = document.createElement("div");
       floater.id = "cao-floater";
       floater.title = "CAO 屏蔽管理";
-      floater.innerHTML = '<svg viewBox="0 0 24 24" fill="#22c55e"><circle cx="12" cy="7" r="4.5"/><circle cx="7" cy="12" r="4.5"/><circle cx="17" cy="12" r="4.5"/><circle cx="12" cy="17" r="4.5"/></svg>';
+      floater.innerHTML = '<svg viewBox="0 0 24 24"><circle class="clover-leaf" cx="12" cy="5" r="4.5"/><circle class="clover-leaf" cx="5" cy="12" r="4.5"/><circle class="clover-leaf" cx="19" cy="12" r="4.5"/><circle class="clover-leaf" cx="12" cy="19" r="4.5"/></svg>';
       floater.addEventListener("click", function() {
         var url = (chrome.runtime && chrome.runtime.getURL) ? chrome.runtime.getURL("block.html") : "";
         if (url) window.open(url, "_blank");
       });
       document.body.appendChild(floater);
+      // 已有屏蔽记录则直接显示绿色
+      chrome.storage.local.get({ [blockHistoryKey]: [] }).then(function(d) {
+        if ((d[blockHistoryKey] || []).length > 0) {
+          floater.classList.add("active");
+        }
+      });
     })();
   });
 
