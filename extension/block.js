@@ -41,15 +41,18 @@
 
     $historyBody.innerHTML = pageItems.map(function(item) {
       var avatarHtml = item.avatar ? '<img src="' + item.avatar.replace(/"/g,"&quot;") + '" class="history-avatar" alt="">' : '<span class="history-avatar-placeholder">?</span>';
+      var safeHandle = h(item.handle);
+      var attrHandle = item.handle.replace(/"/g,"&quot;");
       return '<tr>' +
         '<td>' +
-          '<a class="history-account" href="https://x.com/' + h(item.handle) + '" target="_blank">' +
+          '<a class="history-account" href="https://x.com/' + safeHandle + '" target="_blank">' +
             avatarHtml +
             '<span class="history-name">' + h(item.name || item.handle) + '</span>' +
-            '<span class="history-handle">@' + h(item.handle) + '</span>' +
+            '<span class="history-handle">@' + safeHandle + '</span>' +
           '</a>' +
         '</td>' +
         '<td class="date-cell">' + formatBlockTime(item.blockedAt) + '</td>' +
+        '<td><button type="button" class="unblock-btn" data-handle="' + attrHandle + '">解除屏蔽</button></td>' +
       '</tr>';
     }).join("");
 
@@ -57,6 +60,55 @@
     $historyPrev.disabled = historyPage <= 1;
     $historyNext.disabled = historyPage >= totalPages;
     $historySummary.textContent = '共 ' + history.length + ' 条屏蔽记录';
+
+    // 绑定解除屏蔽按钮
+    $historyBody.querySelectorAll(".unblock-btn").forEach(function(el) {
+      el.addEventListener("click", function(e) {
+        e.preventDefault();
+        unblockHistoryItem(el.dataset.handle, el);
+      });
+    });
+  }
+
+  async function removeFromHistory(handle) {
+    try {
+      history = history.filter(function(item) {
+        return item.handle.toLowerCase() !== handle.toLowerCase();
+      });
+      await chrome.storage.local.set({ [HISTORY_KEY]: history });
+      renderHistory();
+      // 通知 content script 从 blockedAccounts 移除
+      var tabs = await chrome.tabs.query({ url: ["https://x.com/*", "https://twitter.com/*"] });
+      for (var t of tabs) {
+        try { await chrome.tabs.sendMessage(t.id, { type: "MV3_UNBLOCK", handle: handle }); } catch (e) {}
+      }
+    } catch (e) {}
+  }
+
+  async function unblockHistoryItem(handle, btnEl) {
+    // 先调用 X API 解除屏蔽
+    btnEl.disabled = true;
+    btnEl.textContent = "解除中…";
+    try {
+      var CSRF_TOKEN = await getXCSRFToken();
+      if (CSRF_TOKEN) {
+        var resp = await fetch("https://x.com/i/api/1.1/blocks/destroy.json?screen_name=" + encodeURIComponent(handle), {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "x-csrf-token": CSRF_TOKEN,
+            "x-twitter-active-user": "yes",
+            "x-twitter-auth-type": "OAuth2Session",
+            "authorization": "Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA"
+          }
+        });
+        console.log("[block] unblock history status=" + resp.status);
+      }
+    } catch (e) { console.warn("[block] unblock API error:", e); }
+    // 无论 API 成功与否，都从本地历史和 blockedAccounts 移除
+    await removeFromHistory(handle);
+    btnEl.textContent = "✅ 已解除";
+    setTimeout(function() { btnEl.textContent = "解除屏蔽"; btnEl.disabled = false; }, 2000);
   }
 
   function formatBlockTime(ts) {

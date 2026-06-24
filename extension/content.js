@@ -1227,6 +1227,13 @@
         return true;
       }
 
+      // block.html 解除屏蔽：从 blockedAccounts 移除
+      if (message.type === "MV3_UNBLOCK") {
+        blockedAccounts.delete(normalizeHandle(message.handle));
+        sendResponse({ ok: true });
+        return true;
+      }
+
       // 获取 CSRF token
       if (message.type === "MV3_GET_CSRF") {
         var csrf = (document.cookie.match(/\bct0=([^;]+)/) || [])[1] || "";
