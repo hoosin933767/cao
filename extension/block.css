@@ -531,6 +531,93 @@ tbody tr:last-child td {
   color: rgba(255, 255, 255, 0.8);
 }
 
+/* ===== History Avatars ===== */
+.history-avatar,
+.blocked-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.history-avatar-placeholder,
+.blocked-avatar-placeholder {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.3);
+  flex-shrink: 0;
+}
+
+/* ===== Unblock Button ===== */
+.unblock-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 10px;
+  border: 1px solid rgba(255, 80, 80, 0.2);
+  border-radius: 6px;
+  background: rgba(255, 80, 80, 0.04);
+  color: rgba(255, 80, 80, 0.7);
+  font-size: 11px;
+  font-weight: 500;
+  font-family: 'Inter', system-ui, sans-serif;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.unblock-btn:hover:not(:disabled) {
+  background: rgba(255, 80, 80, 0.1);
+  border-color: rgba(255, 80, 80, 0.35);
+  color: rgba(255, 80, 80, 0.9);
+}
+
+.unblock-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* ===== Blocked Page Button ===== */
+.blocked-page-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 12px;
+  font-weight: 500;
+  font-family: 'Inter', system-ui, sans-serif;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.blocked-page-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.blocked-page-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+/* ===== Blocked Avatar Link ===== */
+.blocked-avatar-link {
+  display: inline-flex;
+  text-decoration: none;
+}
+
 /* ===== Scrollbar ===== */
 ::-webkit-scrollbar {
   width: 6px;
