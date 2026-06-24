@@ -409,8 +409,6 @@ tbody tr:last-child td {
 }
 
 .kw-list {
-  max-height: 280px;
-  overflow-y: auto;
   margin-bottom: 12px;
 }
 
@@ -519,11 +517,6 @@ tbody tr:last-child td {
 #blockedStatus {
   font-size: 11px;
   color: rgba(255, 255, 255, 0.3);
-}
-
-.blocked-list {
-  max-height: 360px;
-  overflow-y: auto;
 }
 
 /* ===== History Avatars ===== */
