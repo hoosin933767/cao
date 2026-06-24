@@ -1,45 +1,10 @@
 (function() {
   "use strict";
-  // ── 综合特征检测引擎（纯 JS，无模型依赖）──
-  var ADULT_STRONG = [
-    "约炮","炮友","yp",
-    "裸聊","色色","色情",
-    "打飞机",
-    "破处","处男",
-    "约P","约啪",
-    "固炮","寻炮",
-    "看片",
-  ];
-  var ADULT_WEAK = [
-    "骚",
-    "处女","涩",
-    "上门","空降","同城",
-    "私密","刺激","诱惑",
-    "妹子","少妇",
-    "同城约",
-    "约爱",
-    "资源",
-    "成人内容",
-    "无偿",
-    "交友",
-  ];
-  var ADULT_PROMO = [
-    "线下资源","线下约","线更新","同步更新",
-    "真实可靠",
-  ];
-  var REDIRECT_SIGNALS = [
-    "看简介","点简介","点我头像","点主页","点我主页",
-    "看主页","简介有","点击主页","戳主页",
-    "点我","个人主页","看个人主页",
-    "看置顶","置顶推文","置顶有",
-    "简介","主页有",
-    "的主页",
-  ];
-  // ── 拼音/变体匹配（匹配原始文本，非 CJK 提取）──
-  var PINYIN_SIGNALS = [
-    { pattern: /sao/i, keyword: "骚", pts: 2 },
-  ];
-  // ── 自定义关键词（你训练的 + block.html 管理的）──
+  var ADULT_STRONG = ["约炮","炮友","yp","裸聊","色色","色情","打飞机","破处","处男","约P","约啪","固炮","寻炮","看片"];
+  var ADULT_WEAK = ["骚","处女","涩","上门","空降","同城","私密","刺激","诱惑","妹子","少妇","同城约","约爱","资源","成人内容","无偿","交友"];
+  var ADULT_PROMO = ["线下资源","线下约","线更新","同步更新","真实可靠"];
+  var REDIRECT_SIGNALS = ["看简介","点简介","点我头像","点主页","点我主页","看主页","简介有","点击主页","戳主页","点我","个人主页","看个人主页","看置顶","置顶推文","置顶有","简介","主页有","的主页"];
+  var PINYIN_SIGNALS = [{ pattern: /sao/i, keyword: "骚", pts: 2 }];
   var CUSTOM_KEYWORDS = { adultStrong: [], adultWeak: [], promo: [], redirect: [] };
   var CUSTOM_KW_LOADED = false;
   async function loadCustomKeywords() {
@@ -141,12 +106,9 @@
     for (var i = 0; i < text.length; i++) { if (/[\u4e00-\u9fff]/.test(text[i])) out.push(text[i]); }
     return out;
   }
-  /** 宽松匹配：多个词的汉字以任意顺序、非连续地出现在文本的 CJK 中 */
   function looseKeywordMatch(words, text) {
     var cjk = extractCJK(text).join("");
-    for (var wi = 0; wi < words.length; wi++) {
-      if (cjk.indexOf(words[wi]) === -1) return false;
-    }
+    for (var wi = 0; wi < words.length; wi++) { if (cjk.indexOf(words[wi]) === -1) return false; }
     return true;
   }
   function consecutiveMatch(kw, targetCJK) {
@@ -175,11 +137,8 @@
     return nonCjk / (last - first + 1);
   }
   function isChaoticText(text) {
-    // 排除纯 URL 链接导致的误判
-    var urlCount = (text.match(/https?:\/\/[^\s]+/g) || []).length +
-                   (text.match(/(?:^|\s)(x\.com|twitter\.com)\/[^\s]+/g) || []).length;
+    var urlCount = (text.match(/https?:\/\/[^\s]+/g) || []).length + (text.match(/(?:^|\s)(x\.com|twitter\.com)\/[^\s]+/g) || []).length;
     if (urlCount >= 1) return false;
-    // 1. 字母数字连续段 >= 2 段
     var runs = [], run = "";
     for (var i = 0; i < text.length; i++) {
       if (/[a-zA-Z0-9]/.test(text[i])) { run += text[i]; }
@@ -187,12 +146,11 @@
     }
     if (run.length >= 2) runs.push(run);
     if (runs.length >= 2) return true;
-    // 2. emoji 间杂：中文字符和 emoji 交错（emoji 两侧都有中文）
-    var es = [], r2 = /[\uD800-\uDBFF][\uDC00-\uDFFF]|[\u2600-\u27FF]|[\uFE00-\uFE0F]/g, mt;
-    while ((mt = r2.exec(text)) !== null) { es.push(mt.index); }
-    if (es.length > 0) {
-      var left = text.slice(0, es[0]).replace(/[\s,，。、！？!?]/g, "");
-      var right = text.slice(es[0] + 2).replace(/[\s,，。、！？!?]/g, "");
+    var positions = [], re = /[\uD800-\uDBFF][\uDC00-\uDFFF]|[\u2600-\u27FF]|[\uFE00-\uFE0F]/g, match;
+    while ((match = re.exec(text)) !== null) { positions.push(match.index); }
+    if (positions.length > 0) {
+      var left = text.slice(0, positions[0]).replace(/[\s,，。、！？!?]/g, "");
+      var right = text.slice(positions[0] + 2).replace(/[\s,，。、！？!?]/g, "");
       if (/[\u4e00-\u9fff]/.test(left) && /[\u4e00-\u9fff]/.test(right)) return true;
     }
     return false;
@@ -213,7 +171,6 @@
     var score = 0, features = [], matchedKeyword = null, matchedRedirect = null;
     if (text && typeof text === "string" && text.length > 0) {
       var normalized = normalizeText(text);
-      // ── 拼音/变体匹配（基于完整文本，不受 CJK 提取限制）──
       if (!matchedKeyword) {
         for (var pi = 0; pi < PINYIN_SIGNALS.length; pi++) {
           var ps = PINYIN_SIGNALS[pi];
@@ -246,11 +203,8 @@
           var allPromo = ADULT_PROMO.concat(CUSTOM_KEYWORDS.promo || []);
           for (var i = 0; i < allPromo.length; i++) { if (tryMatch(allPromo[i], 2)) break; }
         }
-        // --- emoji 位移兜底：如 ✈️ 被 DOM 推到文本末尾，"打"+"飞机"不连续但同时存在 ---
         if (!matchedKeyword) {
-          var EMOJI_DISPLACED = [
-            { emoji: "\u2708", words: ["打","飞机"], kw: "打飞机", pts: 2 },
-          ];
+          var EMOJI_DISPLACED = [{ emoji: "\u2708", words: ["打","飞机"], kw: "打飞机", pts: 2 }];
           for (var di = 0; di < EMOJI_DISPLACED.length; di++) {
             var entry = EMOJI_DISPLACED[di];
             if (text.indexOf(entry.emoji) !== -1 && looseKeywordMatch(entry.words, normalized)) {
@@ -272,7 +226,6 @@
         }
       }
       if (isChaoticText(text)) { score += 2; features.push({ k: "\u5185\u5bb9\u6742\u4e71", v: "", p: 2 }); }
-      // ── 第三方 @ 引流检测：评论中 @ 了非对话作者的账号 ──
       if (!matchedRedirect && pageAuthor && text.indexOf("@") !== -1) {
         var atMatches = text.match(/@[A-Za-z0-9_]{1,15}/g) || [];
         var thirdParty = null;
@@ -293,12 +246,10 @@
     if (handle && isHandleRandom(handle)) { score += 1; features.push({ k: "handle \u968f\u673a", v: handle, p: 1 }); }
     return { isScam: score >= 4, score: score, features: features, matchedKeyword: matchedKeyword, matchedRedirect: matchedRedirect };
   }
-  // ── 初始化（只需加载自定义关键词）──
   var ready = false, readyCallbacks = [];
   async function init() {
     try {
       await loadCustomKeywords();
-      // 清理旧的向量数据
       try { if (typeof chrome !== "undefined" && chrome.storage) await chrome.storage.local.remove(["mv3SpamTexts", "mv3SpamSamples"]); } catch (e) {}
       ready = true;
       readyCallbacks.forEach(function(cb) { cb(); });
@@ -306,10 +257,6 @@
     } catch (e) { console.error("[SpamEngine] init failed:", e); }
   }
   function onReady(cb) { if (ready) return cb(); readyCallbacks.push(cb); }
-  window.SpamEngine = {
-    init, onReady, ready: function() { return ready; },
-    normalizeText, detectScam,
-    trainKeywords, loadCustomKeywords, addCustomKeyword, removeCustomKeyword, getCustomKeywords,
-  };
+  window.SpamEngine = { init: init, onReady: onReady, ready: function() { return ready; }, normalizeText: normalizeText, detectScam: detectScam, trainKeywords: trainKeywords, loadCustomKeywords: loadCustomKeywords, addCustomKeyword: addCustomKeyword, removeCustomKeyword: removeCustomKeyword, getCustomKeywords: getCustomKeywords };
   init();
 })();
