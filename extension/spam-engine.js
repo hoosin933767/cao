@@ -147,7 +147,7 @@
     if (run.length >= 2) runs.push(run);
     // 多个字母段 → 只要所有段都含元音（正常英文词），就不算杂乱
     if (runs.length >= 2) {
-      var hasGibberish = runs.some(function(r) { return r.length >= 3 && !/[aeiouAEIOU]/.test(r); });
+      var hasGibberish = runs.some(function(r) { return r.length >= 4 && !/[aeiouAEIOU]/.test(r); });
       if (!hasGibberish) return false;
     }
     // 单个字母段 ≥5 且全部辅音（无元音），说明是无意义键盘敲击
