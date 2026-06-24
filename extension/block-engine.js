@@ -496,6 +496,30 @@
     // 处理待处理屏蔽（全页导航后接手）
     processPendingBlock();
 
+    // ── 注入 unblock-watcher.js 到页面主世界，拦截 X 原生取消屏蔽 API ──
+    if (NAV_HELPER_URL) {
+      var watcherUrl = chrome.runtime.getURL("unblock-watcher.js");
+      var script = document.createElement("script");
+      script.src = watcherUrl;
+      (document.head || document.documentElement).appendChild(script);
+      script.onload = function() { script.remove(); };
+    }
+
+    // 监听页面主世界发来的取消屏蔽事件
+    window.addEventListener("cao-unblock", function(e) {
+      if (!e.detail || !e.detail.handle) return;
+      var nh = e.detail.handle.toLowerCase();
+      blockedAccounts.delete(nh);
+      chrome.storage.local.get({ [STORAGE_KEY]: [] }).then(function(d) {
+        var list = d[STORAGE_KEY] || [];
+        var idx = list.indexOf(nh);
+        if (idx !== -1) {
+          list.splice(idx, 1);
+          chrome.storage.local.set({ [STORAGE_KEY]: list });
+        }
+      });
+    });
+
     // 监听其他页面（如 detected.html）对屏蔽列表的修改
     if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.onChanged) {
       chrome.storage.onChanged.addListener((changes, areaName) => {

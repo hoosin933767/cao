@@ -35,7 +35,8 @@
       "resources": [
         "block.html",
         "block.css",
-        "block.js"
+        "block.js",
+        "unblock-watcher.js"
       ],
       "matches": [
         "https://x.com/*",
