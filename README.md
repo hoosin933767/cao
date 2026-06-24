@@ -1,4 +1,4 @@
-# CAO — Clean Accounts Optimizer
+# CAO — X Cleaner
 
 让 X/Twitter 回归清净 —— 广告消失、垃圾隐藏、一键屏蔽。
 
