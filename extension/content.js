@@ -1107,8 +1107,10 @@
           if (featureResult) {
             article.classList.add("flagged-spam");
             injectFeatureBadge(article, handle, featureResult);
+            console.log("[CAO] detected spam, saving history for", handle);
             // 记录检测结果（无论自动屏蔽是否开启）
             await saveBlockHistory(handle, displayName, getArticleAvatar(article));
+            console.log("[CAO] history saved, now auto-blocking", handle);
             // 自动屏蔽 + 自动隐藏
             await autoBlockAndHide(article, handle);
           }
