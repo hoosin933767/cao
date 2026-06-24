@@ -284,7 +284,7 @@
   // ── X 屏蔽列表 ──
 
   const BLOCKED_CACHE_KEY = "mv3XBlockedCache";
-  const PAGE_SIZE = 100;
+  const PAGE_SIZE = 20;
   const $blockedSection = document.querySelector(".blocked-section");
   const $syncBlockedBtn = document.getElementById("syncBlockedBtn");
   const $blockedStatus = document.getElementById("blockedStatus");
