@@ -4,11 +4,12 @@
 
 ## 安装
 
-1. [下载扩展](https://vercel-api-hazel-gamma.vercel.app/cao-extension-v1.0.0.zip) 并解压到任意文件夹
-2. Chrome 地址栏输入 `chrome://extensions` 回车
-3. 打开右上角 **开发者模式**
-4. 点击左上角 **加载已解压的扩展程序**，选择解压后的文件夹
-5. 刷新 `x.com` 即可使用
+1. [下载扩展](extension/cao-extension-v1.0.0.zip) 或从 GitHub [extension/cao-extension-v1.0.0.zip](https://github.com/hoosin933767/cao/raw/master/extension/cao-extension-v1.0.0.zip) 下载
+2. 解压到任意文件夹
+3. Chrome 地址栏输入 `chrome://extensions` 回车
+4. 打开右上角 **开发者模式**
+5. 点击左上角 **加载已解压的扩展程序**，选择解压后的文件夹
+6. 刷新 `x.com` 即可使用
 
 ## 功能
 
@@ -60,5 +61,5 @@
 ## 链接
 
 - [官网](https://vercel-api-hazel-gamma.vercel.app/)
-- [下载扩展](https://vercel-api-hazel-gamma.vercel.app/cao-extension-v1.0.0.zip)
+- [下载扩展](https://github.com/hoosin933767/cao/raw/master/extension/cao-extension-v1.0.0.zip)
 - [@fuckxegg2](https://x.com/fuckxegg2)
