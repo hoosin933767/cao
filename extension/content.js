@@ -589,12 +589,30 @@
     return withoutHandle || handleText.trim();
   }
 
-  function getArticleUserNameRoot(article) {
-    return article.querySelector('[data-testid="User-Name"]');
+  /**
+   * 获取文章转发/分享数量
+   */
+  function getArticleShareCount(article) {
+    try {
+      // X 的转发数量在 a[href*="/retweets"] 中
+      var shareLink = article.querySelector('a[href*="/retweets"]');
+      if (shareLink) {
+        var text = shareLink.textContent.trim();
+        // 解析数字："12" → 12, "1.2K" → 1200, "12K" → 12000
+        var match = text.match(/^([\d.]+)(K|k|M|m)?/);
+        if (match) {
+          var num = parseFloat(match[1]);
+          var suffix = match[2];
+          if (suffix && (suffix === "K" || suffix === "k")) num *= 1000;
+          if (suffix && (suffix === "M" || suffix === "m")) num *= 1000000;
+          return Math.floor(num);
+        }
+      }
+    } catch (e) {}
+    return 0;
   }
 
   function extractTweetTextForRuleCheck(element) {
-    if (!element) return "";
     // 提取可见文本，包括 <img alt="😀"> 中的 emoji alt 文本
     const parts = [];
     const text = (element.textContent || "").trim();
@@ -1081,6 +1099,18 @@
           if (!featureResult && displayName) {
             const r = window.SpamEngine.detectScam(displayName, handle, pageAuthorHandle);
             if (r.isScam) { featureResult = r; }
+          }
+
+          // 3. 转发数量检测：评论有大量转发是典型的垃圾互刷特征
+          var shareCount = getArticleShareCount(article);
+          if (shareCount > 0) {
+            if (featureResult) {
+              featureResult.score += 2;
+              featureResult.features.push({ k: "\u8f6c\u53d1\u91cf", v: shareCount + "", p: 2 });
+              if (featureResult.score >= 4) featureResult.isScam = true;
+            } else {
+              featureResult = { isScam: shareCount >= 5, score: shareCount >= 5 ? 4 : 0, features: [{ k: "\u8f6c\u53d1\u91cf", v: shareCount + "", p: shareCount >= 5 ? 4 : 0 }], matchedKeyword: null, matchedRedirect: null };
+            }
           }
 
           if (featureResult) {
