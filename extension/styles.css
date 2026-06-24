@@ -81,15 +81,16 @@
   transform: scale(1.1);
 }
 
-#cao-floater svg {
+#cao-floater img {
   width: 22px;
   height: 22px;
-  fill: rgba(0,0,0,0.6);
-  transition: fill 0.3s;
+  display: block;
+  filter: brightness(0);
+  transition: filter 0.3s;
 }
 
-#cao-floater.active svg {
-  fill: #22c55e;
+#cao-floater.active img {
+  filter: none;
 }
 
 #cao-floater.ca-breathe {
