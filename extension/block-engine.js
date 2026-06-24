@@ -51,13 +51,14 @@
       list.unshift({ handle: handle.toLowerCase(), name: handle, avatar: "", blockedAt: Date.now() });
       if (list.length > MAX_BLOCK_HISTORY) list.length = MAX_BLOCK_HISTORY;
       await chrome.storage.local.set({ [BLOCK_HISTORY_KEY]: list });
-      // 触发浮动按钮呼吸
+      // 触发浮动按钮呼吸（闪绿）
       var fb = document.getElementById("cao-floater");
       if (fb) {
         fb.classList.add("active");
         fb.classList.remove("ca-breathe");
         void fb.offsetWidth;
         fb.classList.add("ca-breathe");
+        setTimeout(function() { fb.classList.remove("active"); }, 2500);
       }
     } catch (e) {
       console.warn("[BlockEngine] saveBlockHistory error:", e);

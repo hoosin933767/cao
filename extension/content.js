@@ -621,7 +621,7 @@
     return "";
   }
 
-  /** 浮动按钮触发呼吸动画 + 切换为绿色 */
+  /** 浮动按钮触发呼吸动画 + 闪绿 */
   function triggerFloaterBreath() {
     var el = document.getElementById("cao-floater");
     if (!el) return;
@@ -629,6 +629,8 @@
     el.classList.remove("ca-breathe");
     void el.offsetWidth;
     el.classList.add("ca-breathe");
+    // 动画结束后变回黑色
+    setTimeout(function() { el.classList.remove("active"); }, 2500);
   }
 
   /** 记录屏蔽历史（仅保留最近 MAX_BLOCK_HISTORY 条） */
@@ -861,8 +863,7 @@
       var floater = document.createElement("div");
       floater.id = "cao-floater";
       floater.title = "CAO 屏蔽管理";
-      var iconData = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAACj0lEQVR4nO2VX0hTcRTHP+dupjOjEEcEIb2FZYRQBEEPPRZuiemiiMAeDHoxk5pY0KACJ0RQD1HQU73oHWguS5JIgqgnIYuK6iUhKhFEi3S13dPLJte5f22LXnbgwjnnnvM9H36/3/1dIW6nBpvWuZxldTELt6CVCr8cGN8WIzpx1Wcu8I9M/OGWY6j0AJvT1EQUHotFd7DJfFVsAMNFJAT6MkNNucB+DJ733D9UX3SAgCf8c/ZL9VGEJ1lqV0ct63yxASThdIUP1ziJTqJsyNihhDDoCnrMqaICAPiHW/aBjCTnU9iMYnj6vP0vCgUw7EHQG3ooopdy6KsRrDH/8MGtRQUA6G0MXRDRi4CV9GoW+GCLq8Aw22+2lxUCkHap/UMtuzHoAGlAeA/GuUg08qncUTYG7FgqVE4GD5g3UmmcveddI7pqGwZuFapUmRMcM5WL1uuAz/yRESAtWLi1FuUd4Iqn3ga95pZlgx80b5SocQWkGXCmkLFQJkXlzIotyGZBjzklwm1bqs5+P3SOtlZL1PEMxJdmOIAhok8r1k6P/zUAgEK/PY7FrD0JvzyibUBtFolHFRP1nYG949H8AKzI8ptTpM7mb8/SPq/qaAsEAhbkcQYS5h9u/Qqsjw81XVXTRxbm3UGEzky6KtLR5xm4lojT7VEuNrUEoLpp4bvbRGjK1KAw2tc4cN2eyx9A+I0uRTvjT6bh/ZWyeByxdRUCIBYxTb3QUVHtBqNBRXcpfDSEW8FGcyh5eEEAmkIMiIng6/WGBnPVyesrAFBwrISS070eM+fhBQGIJJ10YcR+uv85QNLwOSecyKe1KACqvLnsMT//N4BCrARQAigBlADy/x0jdyxUAQyRu/nq/AEHCdGWymvi9wAAAABJRU5ErkJggg==";
-      floater.innerHTML = '<img src="' + iconData + '" alt="CAO">';
+      floater.innerHTML = '<svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="5"/><circle cx="5" cy="14" r="5"/><circle cx="19" cy="14" r="5"/><path d="M12 19 L12 23"/></svg>';
       floater.addEventListener("click", function() {
         var url = (chrome.runtime && chrome.runtime.getURL) ? chrome.runtime.getURL("block.html") : "";
         if (url) window.open(url, "_blank");
