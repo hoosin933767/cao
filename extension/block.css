@@ -190,9 +190,21 @@ table {
   font-size: 13px;
 }
 
+col.col-account {
+  width: 58%;
+}
+
+col.col-time {
+  width: 24%;
+}
+
+col.col-action {
+  width: 18%;
+}
+
 thead th {
   text-align: left;
-  padding: 10px 12px;
+  padding: 8px 10px;
   font-weight: 600;
   color: rgba(255, 255, 255, 0.6);
   font-size: 11px;
@@ -202,20 +214,8 @@ thead th {
   background: rgba(255, 255, 255, 0.06);
 }
 
-thead th:first-child {
-  width: auto;
-}
-
-thead th:nth-child(2) {
-  width: 110px;
-}
-
-thead th:nth-child(3) {
-  width: 80px;
-}
-
 tbody td {
-  padding: 10px 12px;
+  padding: 8px 10px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   vertical-align: middle;
 }
@@ -530,6 +530,14 @@ tbody tr:last-child td {
   min-width: 0;
 }
 
+.history-text-wrap {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
 .history-account:hover .history-name {
   color: #fff;
   opacity: 0.85;
@@ -589,7 +597,7 @@ tbody tr:last-child td {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 5px 10px;
+  padding: 4px 8px;
   border: 1px solid rgba(255, 80, 80, 0.4);
   border-radius: 6px;
   background: rgba(255, 80, 80, 0.12);

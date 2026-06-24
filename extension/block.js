@@ -47,8 +47,10 @@
         '<td>' +
           '<a class="history-account" href="https://x.com/' + safeHandle + '" target="_blank">' +
             avatarHtml +
-            '<span class="history-name">' + h(item.name || item.handle) + '</span>' +
-            '<span class="history-handle">@' + safeHandle + '</span>' +
+            '<span class="history-text-wrap">' +
+              '<span class="history-name">' + h(item.name || item.handle) + '</span>' +
+              '<span class="history-handle">@' + safeHandle + '</span>' +
+            '</span>' +
           '</a>' +
         '</td>' +
         '<td class="date-cell">' + formatBlockTime(item.blockedAt) + '</td>' +
