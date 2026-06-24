@@ -188,18 +188,17 @@
     if (run.length >= 2) runs.push(run);
     if (runs.length >= 2) return true;
     // 2. emoji 间杂：中文字符和 emoji 交错（emoji 两侧都有中文）
-    var emojiPositions = [];
-    var re = /[\uD800-\uDBFF][\uDC00-\uDFFF]|[\u2600-\u27FF]|[\uFE00-\uFE0F]/g;
-    var m;
-    while ((m = re.exec(text)) !== null) { emojiPositions.push(m.index); }
-    if (emojiPositions.length > 0) {
-      var first = emojiPositions[0];
-      var last = emojiPositions[emojiPositions.length - 1];
-      var before = text.slice(0, first).replace(/[\s,，。、！？!?]/g, "");
-      var after = text.slice(last + 2).replace(/[\s,，。、！？!?]/g, "");
-      // 去掉纯标点，还剩汉字 → emoji 两侧都有内容 → 间杂
-      if (/[\u4e00-\u9fff]/.test(before) && /[\u4e00-\u9fff]/.test(after)) return true;
-    }
+     var emojiPositions = [];
+     var re = /[\uD800-\uDBFF][\uDC00-\uDFFF]|[\u2600-\u27FF]|[\uFE00-\uFE0F]/g;
+     var m;
+     while ((m = re.exec(text)) !== null) { emojiPositions.push(m.index); }
+     if (emojiPositions.length > 0) {
+       var first = emojiPositions[0];
+       var before = text.slice(0, first).replace(/[\s,，。、！？!?]/g, "");
+       var after = text.slice(first + 2).replace(/[\s,，。、！？!?]/g, "");
+       // 去掉纯标点，还剩汉字 → emoji 两侧都有内容 → 间杂
+       if (/[\u4e00-\u9fff]/.test(before) && /[\u4e00-\u9fff]/.test(after)) return true;
+     }
     return false;
   }
   function isHandleRandom(handle) {
