@@ -1,4 +1,5 @@
 (function initTwitterAccountBlocker() {
+  window.__cao_version = "d96ecca+1";
   const supportedHosts = new Set(["twitter.com", "www.twitter.com", "x.com", "www.x.com"]);
   const ignoredPaths = new Set([
     "compose",
@@ -672,6 +673,9 @@
 
   /** 记录屏蔽历史（仅保留最近 MAX_BLOCK_HISTORY 条） */
   async function saveBlockHistory(handle, name, avatar) {
+    // 调试标记（在 try 外部，绝对不可能被吞掉）
+    if (!window.__cao_dbg_seen) { window.__cao_dbg_seen = {}; }
+    window.__cao_dbg_seen[handle] = Date.now();
     try {
       const d = await chrome.storage.local.get(blockHistoryKey);
       let list = d[blockHistoryKey] || [];
