@@ -434,4 +434,25 @@
   }
 
   $syncBlockedBtn.addEventListener("click", fetchXBlockedList);
+
+  // ── TAB 切换 ──
+
+  const $tabNav = document.getElementById("mainTabs");
+  if ($tabNav) {
+    $tabNav.addEventListener("click", function(e) {
+      const btn = e.target.closest(".tab-btn");
+      if (!btn) return;
+      const tab = btn.dataset.tab;
+      if (!tab) return;
+
+      // Update button states
+      $tabNav.querySelectorAll(".tab-btn").forEach(function(t) { t.classList.remove("active"); });
+      btn.classList.add("active");
+
+      // Show/hide tab content
+      document.querySelectorAll(".tab-content").forEach(function(c) { c.classList.remove("active"); });
+      var target = document.getElementById("tab-" + tab);
+      if (target) target.classList.add("active");
+    });
+  }
 })();

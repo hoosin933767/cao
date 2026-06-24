@@ -3,77 +3,150 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>X 工具</title>
+    <title>CAO · 屏蔽管理</title>
     <link rel="stylesheet" href="block.css">
   </head>
   <body>
-    <main class="page">
+
+    <!-- ===== Background Scene (same as popup, full-width fixed) ===== -->
+    <div class="bg-scene">
+      <svg viewBox="0 0 440 500" preserveAspectRatio="xMidYMin slice" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#3B82F6"/>
+            <stop offset="45%" stop-color="#74B9FF"/>
+            <stop offset="75%" stop-color="#A8D8FF"/>
+            <stop offset="100%" stop-color="#D4E9FF"/>
+          </linearGradient>
+          <linearGradient id="hillFar" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#6BBF59"/>
+            <stop offset="100%" stop-color="#4A9E3A"/>
+          </linearGradient>
+          <linearGradient id="hillNear" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#7ED957"/>
+            <stop offset="100%" stop-color="#5DBB3A"/>
+          </linearGradient>
+          <g id="cloud">
+            <ellipse cx="0" cy="0" rx="30" ry="14" fill="white" opacity="0.85"/>
+            <ellipse cx="-22" cy="4" rx="20" ry="11" fill="white" opacity="0.85"/>
+            <ellipse cx="24" cy="3" rx="18" ry="10" fill="white" opacity="0.85"/>
+            <ellipse cx="-8" cy="-8" rx="18" ry="10" fill="white" opacity="0.9"/>
+            <ellipse cx="12" cy="-6" rx="16" ry="9" fill="white" opacity="0.9"/>
+          </g>
+        </defs>
+        <rect width="440" height="500" fill="url(#skyGrad)"/>
+        <circle cx="370" cy="60" r="50" fill="rgba(255,247,214,0.15)"/>
+        <circle cx="370" cy="60" r="18" fill="#FFF7D6" opacity="0.5"/>
+        <use href="#cloud" x="60" y="55" opacity="0.5">
+          <animateTransform attributeName="transform" type="translate" values="0,0;12,0;6,0;0,0" dur="20s" repeatCount="indefinite"/>
+        </use>
+        <use href="#cloud" x="280" y="40" opacity="0.4" transform="scale(0.8)">
+          <animateTransform attributeName="transform" type="translate" values="0,0;-10,0;-4,0;0,0" dur="24s" repeatCount="indefinite"/>
+        </use>
+        <path d="M0,250 Q70,210 150,230 Q230,200 310,225 Q370,210 440,240 L440,500 L0,500 Z" fill="url(#hillFar)"/>
+        <path d="M0,270 Q120,220 260,250 Q340,230 440,260 L440,500 L0,500 Z" fill="url(#hillNear)"/>
+      </svg>
+    </div>
+
+    <!-- ===== Page Content ===== -->
+    <div class="page-wrap">
+
+      <!-- Header -->
       <header class="page-header">
-        <div>
-          <h1>屏蔽记录</h1>
-          <p id="historySummary">加载中…</p>
+        <div class="header-left">
+          <span class="header-logo">🌱 CAO</span>
+          <div class="header-title-area">
+            <h1>屏蔽管理</h1>
+            <p id="historySummary">加载中…</p>
+          </div>
         </div>
         <div class="header-actions">
           <label class="auto-block-toggle">
             <span>自动屏蔽</span>
-            <input id="autoBlockToggle" type="checkbox" checked>
+            <span class="toggle-switch">
+              <input id="autoBlockToggle" type="checkbox" checked>
+              <span class="toggle-slider"></span>
+            </span>
           </label>
         </div>
       </header>
 
-      <section class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>账号</th>
-              <th style="width:110px">屏蔽时间</th>
-            </tr>
-          </thead>
-          <tbody id="historyBody"></tbody>
-        </table>
-        <div id="historyEmpty" class="empty-state">暂无屏蔽记录</div>
-      </section>
+      <!-- Tab Navigation -->
+      <nav class="tab-nav" id="mainTabs">
+        <button class="tab-btn active" data-tab="history">屏蔽记录</button>
+        <button class="tab-btn" data-tab="keywords">关键词管理</button>
+        <button class="tab-btn" data-tab="blocked">X 屏蔽列表</button>
+      </nav>
 
-      <footer class="pagination">
-        <span id="historyPageInfo"></span>
-        <div class="pagination-btns">
-          <button id="historyPrevBtn" type="button">上</button>
-          <button id="historyNextBtn" type="button">下</button>
+      <!-- Tab: 屏蔽记录 -->
+      <div class="tab-content active" id="tab-history">
+        <div class="glass-card section" style="padding:0;overflow:hidden;">
+          <div class="table-wrap" style="border:none;border-radius:0;">
+            <table>
+              <thead>
+                <tr>
+                  <th>账号</th>
+                  <th style="width:110px">屏蔽时间</th>
+                </tr>
+              </thead>
+              <tbody id="historyBody"></tbody>
+            </table>
+            <div id="historyEmpty" class="empty-state">暂无屏蔽记录</div>
+          </div>
         </div>
-      </footer>
+        <footer class="pagination">
+          <span id="historyPageInfo"></span>
+          <div class="pagination-btns">
+            <button id="historyPrevBtn" type="button" class="btn btn-sm">← 上一页</button>
+            <button id="historyNextBtn" type="button" class="btn btn-sm">下一页 →</button>
+          </div>
+        </footer>
+      </div>
 
-      <section class="kw-section">
-        <h3>关键词管理 <span id="kwCount" class="kw-count">(0)</span></h3>
-        <p id="kwInfo">系统内置关键词（蓝色）为固定规则，自定义关键词（白色）可手动添加或删除。</p>
-        <div class="kw-tabs" id="kwTabs">
-          <button class="kw-tab active" data-cat="adultStrong">成人强 (+2)</button>
-          <button class="kw-tab" data-cat="adultWeak">成人弱 (+2)</button>
-          <button class="kw-tab" data-cat="promo">推广 (+2)</button>
-          <button class="kw-tab" data-cat="redirect">引流 (+2)</button>
-        </div>
-        <div class="kw-list" id="kwList"><div class="kw-empty">加载中…</div></div>
-        <div class="kw-add">
-          <input id="kwInput" type="text" placeholder="输入新关键词">
-          <select id="kwCategory">
-            <option value="adultStrong">成人强</option>
-            <option value="adultWeak">成人弱</option>
-            <option value="promo">推广</option>
-            <option value="redirect">引流</option>
-          </select>
-          <button id="kwAddBtn" type="button">添加</button>
-        </div>
-      </section>
+      <!-- Tab: 关键词管理 -->
+      <div class="tab-content" id="tab-keywords">
+        <section class="glass-card kw-section">
+          <div class="section-header">
+            <h2>关键词管理 <span id="kwCount" class="count">(0)</span></h2>
+          </div>
+          <p class="kw-desc">系统内置关键词（蓝色）为固定规则，自定义关键词可手动添加或删除。</p>
+          <div class="kw-tabs" id="kwTabs">
+            <button class="kw-tab active" data-cat="adultStrong">成人强</button>
+            <button class="kw-tab" data-cat="adultWeak">成人弱</button>
+            <button class="kw-tab" data-cat="promo">推广</button>
+            <button class="kw-tab" data-cat="redirect">引流</button>
+          </div>
+          <div class="kw-list" id="kwList"><div class="kw-empty">加载中…</div></div>
+          <div class="kw-add">
+            <input id="kwInput" type="text" placeholder="输入新关键词">
+            <select id="kwCategory">
+              <option value="adultStrong">成人强</option>
+              <option value="adultWeak">成人弱</option>
+              <option value="promo">推广</option>
+              <option value="redirect">引流</option>
+            </select>
+            <button id="kwAddBtn" type="button" class="btn btn-primary">添加</button>
+          </div>
+          <p id="kwInfo"></p>
+        </section>
+      </div>
 
-      <section class="blocked-section">
-        <h3>X 屏蔽列表 <span id="blockedCount">(0)</span></h3>
-        <div class="blocked-actions">
-          <button id="syncBlockedBtn" type="button">从 X 同步屏蔽列表</button>
-          <span id="blockedStatus"></span>
-        </div>
-        <div id="blockedList" class="blocked-list"><div class="kw-empty">暂无数据</div></div>
-      </section>
+      <!-- Tab: X 屏蔽列表 -->
+      <div class="tab-content" id="tab-blocked">
+        <section class="glass-card blocked-section">
+          <div class="section-header">
+            <h2>X 屏蔽列表 <span id="blockedCount" class="count">(0)</span></h2>
+            <div class="blocked-actions">
+              <button id="syncBlockedBtn" type="button" class="btn btn-primary">从 X 同步</button>
+              <span id="blockedStatus"></span>
+            </div>
+          </div>
+          <div id="blockedList" class="blocked-list"><div class="kw-empty">暂无数据</div></div>
+        </section>
+      </div>
 
-    </main>
+    </div>
+
     <script src="block.js"></script>
   </body>
 </html>
