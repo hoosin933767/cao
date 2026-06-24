@@ -699,6 +699,10 @@ tbody tr:last-child td {
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
+.blocked-item-wrap .unblock-btn {
+  margin-left: auto;
+}
+
 .blocked-item-wrap:last-child {
   border-bottom: none;
 }
