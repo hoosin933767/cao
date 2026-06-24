@@ -20,7 +20,8 @@
     try {
       const d = await chrome.storage.local.get(HISTORY_KEY);
       history = d[HISTORY_KEY] || [];
-    } catch (e) { history = []; }
+      console.log("[CAO] block.js loaded", history.length, "records");
+    } catch (e) { history = []; console.warn("[CAO] block.js load error:", e); }
     historyPage = 1;
     renderHistory();
   }
