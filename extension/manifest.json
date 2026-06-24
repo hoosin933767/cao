@@ -3,7 +3,12 @@
   "name": "CAO",
   "version": "1.0.0",
   "description": "全自动识别并隐藏 X/Twitter 上的广告推荐和垃圾内容，装上一键屏蔽。",
-  "permissions": ["storage", "activeTab", "tabs", "cookies"],
+  "permissions": [
+    "storage",
+    "activeTab",
+    "tabs",
+    "cookies"
+  ],
   "host_permissions": [
     "https://x.com/*",
     "https://twitter.com/*",
@@ -27,15 +32,35 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["block.html", "block.css", "block.js"],
-      "matches": ["https://x.com/*", "https://twitter.com/*", "https://www.x.com/*", "https://www.twitter.com/*"]
+      "resources": [
+        "block.html",
+        "block.css",
+        "block.js"
+      ],
+      "matches": [
+        "https://x.com/*",
+        "https://twitter.com/*",
+        "https://www.x.com/*",
+        "https://www.twitter.com/*"
+      ]
     }
   ],
   "content_scripts": [
     {
-      "matches": ["https://x.com/*", "https://twitter.com/*", "https://www.x.com/*", "https://www.twitter.com/*"],
-      "js": ["block-engine.js", "spam-engine.js", "content.js"],
-      "css": ["styles.css"],
+      "matches": [
+        "https://x.com/*",
+        "https://twitter.com/*",
+        "https://www.x.com/*",
+        "https://www.twitter.com/*"
+      ],
+      "js": [
+        "block-engine.js",
+        "spam-engine.js",
+        "content.js"
+      ],
+      "css": [
+        "styles.css"
+      ],
       "run_at": "document_idle"
     }
   ]
