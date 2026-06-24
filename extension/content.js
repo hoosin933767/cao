@@ -583,7 +583,8 @@
     }
 
     const handleText = userNameRoot.querySelector('a[href*="/"] span')?.textContent || "";
-    const allText = userNameRoot.textContent.replace(/\s+/g, " ").trim();
+    // 用 innerText 替代 textContent，可以获取 img[alt] 中的 emoji 字符
+    const allText = userNameRoot.innerText.replace(/\s+/g, " ").trim();
     const withoutHandle = allText.replace(/@[A-Za-z0-9_]{1,15}.*/, "").trim();
     return withoutHandle || handleText.trim();
   }
@@ -1056,11 +1057,6 @@
       const pageAuthorHandle = getPageTweetAuthorHandle();
       for (const article of allArticles) {
         const handle = getArticleHandle(article);
-        // 调试：打印所有待处理的 article 状态
-        if (article.querySelector('[data-testid="User-Name"]')) {
-          var debugLinks = article.querySelectorAll('[data-testid="User-Name"] a[href]');
-          console.log("[CAO debug] User-Name link count:", debugLinks.length, "handle:", handle);
-        }
         // 跳过自己、已屏蔽、已建议、以及主推文作者（url 中的 handle）
         if (!handle || blockedAccounts.has(handle) || suggestedAccounts.has(handle) || (myHandle && handle.toLowerCase() === myHandle) || (pageAuthorHandle && handle.toLowerCase() === pageAuthorHandle)) continue;
         const replyText = getArticleReplyText(article);
@@ -1094,7 +1090,6 @@
             await autoBlockAndHide(article, handle);
           }
         } catch (e) {
-          // SpamEngine 可能还没完全就绪，跳过
         }
       }
     } finally {
