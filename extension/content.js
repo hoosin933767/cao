@@ -1068,8 +1068,8 @@
       const pageAuthorHandle = getPageTweetAuthorHandle();
       for (const article of allArticles) {
         const handle = getArticleHandle(article);
-        // 跳过自己、已屏蔽、已建议、以及主推文作者（url 中的 handle）
-        if (!handle || blockedAccounts.has(handle) || suggestedAccounts.has(handle) || (myHandle && handle.toLowerCase() === myHandle) || (pageAuthorHandle && handle.toLowerCase() === pageAuthorHandle)) continue;
+        // 跳过自己、已建议、已检测过的、以及主推文作者（url 中的 handle）
+        if (!handle || suggestedAccounts.has(handle) || article.classList.contains("flagged-spam") || (myHandle && handle.toLowerCase() === myHandle) || (pageAuthorHandle && handle.toLowerCase() === pageAuthorHandle)) continue;
         const replyText = getArticleReplyText(article);
         // 回复文本为空时不跳过，可能名字本身就是垃圾（如纯 emoji 回复）
 
