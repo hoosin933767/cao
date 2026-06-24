@@ -78,6 +78,11 @@
         return item.handle.toLowerCase() !== handle.toLowerCase();
       });
       await chrome.storage.local.set({ [HISTORY_KEY]: history });
+      // 同时从 mv3BlockedTwitterAccounts 持久存储中移除
+      var blk = await chrome.storage.local.get({ ["mv3BlockedTwitterAccounts"]: [] });
+      var blkList = blk["mv3BlockedTwitterAccounts"] || [];
+      var idx = blkList.indexOf(handle.toLowerCase());
+      if (idx !== -1) { blkList.splice(idx, 1); await chrome.storage.local.set({ ["mv3BlockedTwitterAccounts"]: blkList }); }
       renderHistory();
       // 通知 content script 从 blockedAccounts 移除
       var tabs = await chrome.tabs.query({ url: ["https://x.com/*", "https://twitter.com/*"] });
@@ -385,6 +390,18 @@
       console.log("[block] unblock response status=" + resp.status + " body=" + text.slice(0, 300));
       if (resp.ok) {
         btnEl.textContent = "✅ 已解除";
+        // 从持久存储 mv3BlockedTwitterAccounts 中移除
+        try {
+          var blk2 = await chrome.storage.local.get({ ["mv3BlockedTwitterAccounts"]: [] });
+          var blkList2 = blk2["mv3BlockedTwitterAccounts"] || [];
+          var idx2 = blkList2.indexOf(handle.toLowerCase());
+          if (idx2 !== -1) { blkList2.splice(idx2, 1); await chrome.storage.local.set({ ["mv3BlockedTwitterAccounts"]: blkList2 }); }
+        } catch (e) {}
+        // 通知 content.js 从 blockedAccounts 和持久存储移除
+        var tabs = await chrome.tabs.query({ url: ["https://x.com/*", "https://twitter.com/*"] });
+        for (var t of tabs) {
+          try { await chrome.tabs.sendMessage(t.id, { type: "MV3_UNBLOCK", handle: handle }); } catch (e) {}
+        }
         setTimeout(function() {
           blockedListData = blockedListData.filter(function(item) {
             var h = item.handle || item;

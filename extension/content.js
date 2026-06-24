@@ -1236,6 +1236,16 @@
       // block.html 解除屏蔽：从 blockedAccounts 移除
       if (message.type === "MV3_UNBLOCK") {
         blockedAccounts.delete(normalizeHandle(message.handle));
+        // 同时从持久存储 mv3BlockedTwitterAccounts 中移除，避免页面刷新后重新加载
+        chrome.storage.local.get({ [storageKey]: [] }).then(function(d) {
+          var list = d[storageKey] || [];
+          var nh = message.handle.toLowerCase();
+          var idx = list.indexOf(nh);
+          if (idx !== -1) {
+            list.splice(idx, 1);
+            chrome.storage.local.set({ [storageKey]: list });
+          }
+        });
         sendResponse({ ok: true });
         return true;
       }
