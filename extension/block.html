@@ -8,53 +8,12 @@
   </head>
   <body>
 
-    <!-- ===== Background Scene (same as popup, full-width fixed) ===== -->
-    <div class="bg-scene">
-      <svg viewBox="0 0 440 500" preserveAspectRatio="xMidYMin slice" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#3B82F6"/>
-            <stop offset="45%" stop-color="#74B9FF"/>
-            <stop offset="75%" stop-color="#A8D8FF"/>
-            <stop offset="100%" stop-color="#D4E9FF"/>
-          </linearGradient>
-          <linearGradient id="hillFar" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#6BBF59"/>
-            <stop offset="100%" stop-color="#4A9E3A"/>
-          </linearGradient>
-          <linearGradient id="hillNear" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#7ED957"/>
-            <stop offset="100%" stop-color="#5DBB3A"/>
-          </linearGradient>
-          <g id="cloud">
-            <ellipse cx="0" cy="0" rx="30" ry="14" fill="white" opacity="0.85"/>
-            <ellipse cx="-22" cy="4" rx="20" ry="11" fill="white" opacity="0.85"/>
-            <ellipse cx="24" cy="3" rx="18" ry="10" fill="white" opacity="0.85"/>
-            <ellipse cx="-8" cy="-8" rx="18" ry="10" fill="white" opacity="0.9"/>
-            <ellipse cx="12" cy="-6" rx="16" ry="9" fill="white" opacity="0.9"/>
-          </g>
-        </defs>
-        <rect width="440" height="500" fill="url(#skyGrad)"/>
-        <circle cx="370" cy="60" r="50" fill="rgba(255,247,214,0.15)"/>
-        <circle cx="370" cy="60" r="18" fill="#FFF7D6" opacity="0.5"/>
-        <use href="#cloud" x="60" y="55" opacity="0.5">
-          <animateTransform attributeName="transform" type="translate" values="0,0;12,0;6,0;0,0" dur="20s" repeatCount="indefinite"/>
-        </use>
-        <use href="#cloud" x="280" y="40" opacity="0.4" transform="scale(0.8)">
-          <animateTransform attributeName="transform" type="translate" values="0,0;-10,0;-4,0;0,0" dur="24s" repeatCount="indefinite"/>
-        </use>
-        <path d="M0,250 Q70,210 150,230 Q230,200 310,225 Q370,210 440,240 L440,500 L0,500 Z" fill="url(#hillFar)"/>
-        <path d="M0,270 Q120,220 260,250 Q340,230 440,260 L440,500 L0,500 Z" fill="url(#hillNear)"/>
-      </svg>
-    </div>
-
-    <!-- ===== Page Content ===== -->
     <div class="page-wrap">
 
       <!-- Header -->
       <header class="page-header">
         <div class="header-left">
-          <span class="header-logo">🌱 CAO</span>
+          <span class="header-logo">CAO</span>
           <div class="header-title-area">
             <h1>屏蔽管理</h1>
             <p id="historySummary">加载中…</p>
@@ -110,7 +69,7 @@
           <div class="section-header">
             <h2>关键词管理 <span id="kwCount" class="count">(0)</span></h2>
           </div>
-          <p class="kw-desc">系统内置关键词（蓝色）为固定规则，自定义关键词可手动添加或删除。</p>
+          <p class="kw-desc">系统内置关键词为固定规则，自定义关键词可手动添加或删除。</p>
           <div class="kw-tabs" id="kwTabs">
             <button class="kw-tab active" data-cat="adultStrong">成人强</button>
             <button class="kw-tab" data-cat="adultWeak">成人弱</button>
