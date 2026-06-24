@@ -220,12 +220,12 @@
         var sig = allRedirect[i];
         if (text.indexOf(sig) !== -1) {
           matchedRedirect = sig;
-          if (score < 4) score += 2;
-          features.push({ k: "\u5f15\u6d41\u4fe1\u53f7", v: sig, p: 2 });
+          if (score < 3) score += 1;
+          features.push({ k: "\u5f15\u6d41\u4fe1\u53f7", v: sig, p: 1 });
           break;
         }
       }
-      if (isChaoticText(text)) { score += 2; features.push({ k: "\u5185\u5bb9\u6742\u4e71", v: "", p: 2 }); }
+      if (isChaoticText(text)) { score += 1; features.push({ k: "\u5185\u5bb9\u6742\u4e71", v: "", p: 1 }); }
       if (!matchedRedirect && pageAuthor && text.indexOf("@") !== -1) {
         var atMatches = text.match(/@[A-Za-z0-9_]{1,15}/g) || [];
         var thirdParty = null;
@@ -238,13 +238,13 @@
         }
         if (thirdParty) {
           matchedRedirect = "@" + thirdParty;
-          if (score < 4) score += 2;
-          features.push({ k: "\u5f15\u6d41\u4fe1\u53f7", v: matchedRedirect, p: 2 });
+          if (score < 3) score += 1;
+          features.push({ k: "\u5f15\u6d41\u4fe1\u53f7", v: matchedRedirect, p: 1 });
         }
       }
     }
     if (handle && isHandleRandom(handle)) { score += 1; features.push({ k: "handle \u968f\u673a", v: handle, p: 1 }); }
-    return { isScam: score >= 4, score: score, features: features, matchedKeyword: matchedKeyword, matchedRedirect: matchedRedirect };
+    return { isScam: score >= 3, score: score, features: features, matchedKeyword: matchedKeyword, matchedRedirect: matchedRedirect };
   }
   var ready = false, readyCallbacks = [];
   async function init() {

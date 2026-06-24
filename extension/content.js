@@ -1094,14 +1094,12 @@
           let featureResult = null;
           if (replyText && replyText.length > 0) {
             const r = window.SpamEngine.detectScam(replyText, handle, pageAuthorHandle);
-            console.log("[CAO] detectScam reply:", handle, JSON.stringify(replyText), "→", r.score, r.isScam);
             if (r.isScam) { featureResult = r; }
           }
 
           // 2. 名字特征检测
           if (!featureResult && displayName) {
             const r = window.SpamEngine.detectScam(displayName, handle, pageAuthorHandle);
-            console.log("[CAO] detectScam name:", handle, JSON.stringify(displayName), "→", r.score, r.isScam);
             if (r.isScam) { featureResult = r; }
           }
 
@@ -1111,7 +1109,7 @@
             if (featureResult) {
               featureResult.score += 2;
               featureResult.features.push({ k: "\u8f6c\u53d1\u91cf", v: shareCount + "", p: 2 });
-              if (featureResult.score >= 4) featureResult.isScam = true;
+              if (featureResult.score >= 3) featureResult.isScam = true;
             } else {
               featureResult = { isScam: shareCount >= 5, score: shareCount >= 5 ? 4 : 0, features: [{ k: "\u8f6c\u53d1\u91cf", v: shareCount + "", p: shareCount >= 5 ? 4 : 0 }], matchedKeyword: null, matchedRedirect: null };
             }
