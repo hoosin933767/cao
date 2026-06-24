@@ -1070,7 +1070,7 @@
         return;
       }
 
-      const allArticles = document.querySelectorAll('article[data-testid="tweet"]');
+      const allArticles = document.querySelectorAll('article');
       const myHandle = await waitForMyHandle();
       const pageAuthorHandle = getPageTweetAuthorHandle();
       for (const article of allArticles) {
