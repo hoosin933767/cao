@@ -1056,6 +1056,11 @@
       const pageAuthorHandle = getPageTweetAuthorHandle();
       for (const article of allArticles) {
         const handle = getArticleHandle(article);
+        // 调试：打印所有待处理的 article 状态
+        if (article.querySelector('[data-testid="User-Name"]')) {
+          var debugLinks = article.querySelectorAll('[data-testid="User-Name"] a[href]');
+          console.log("[CAO debug] User-Name link count:", debugLinks.length, "handle:", handle);
+        }
         // 跳过自己、已屏蔽、已建议、以及主推文作者（url 中的 handle）
         if (!handle || blockedAccounts.has(handle) || suggestedAccounts.has(handle) || (myHandle && handle.toLowerCase() === myHandle) || (pageAuthorHandle && handle.toLowerCase() === pageAuthorHandle)) continue;
         const replyText = getArticleReplyText(article);
