@@ -1118,6 +1118,8 @@
           if (featureResult) {
             article.classList.add("flagged-spam");
             injectFeatureBadge(article, handle, featureResult);
+            // 记录检测结果（无论自动屏蔽是否开启）
+            saveBlockHistory(handle, displayName, getArticleAvatar(article));
             // 自动屏蔽 + 自动隐藏
             await autoBlockAndHide(article, handle);
           }
@@ -1150,7 +1152,6 @@
           await chrome.storage.local.set({ [storageKey]: list.sort() });
         }
       } catch (e) {}
-      saveBlockHistory(handle, getArticleDisplayName(article), getArticleAvatar(article));
       hideBlockedAccountsSoon();
     }
   }
