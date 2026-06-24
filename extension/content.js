@@ -858,6 +858,21 @@
     // ── 创建浮动按钮 ──
     (function() {
       if (document.getElementById("cao-floater")) return;
+      // 找到 Grok 按钮，获取其底部位置
+      function positionFloater() {
+        var grokBtn = document.querySelector('a[href="/i/grok"]') || document.querySelector('[data-testid="Grok"]');
+        if (!grokBtn) { floater.style.bottom = "136px"; return; }
+        var rect = grokBtn.getBoundingClientRect();
+        // 找 Grok 上方最近的同级兄弟图标，计算间距
+        var parent = grokBtn.parentElement;
+        var prev = grokBtn.previousElementSibling || (parent ? parent.previousElementSibling : null);
+        var gap = 8; // 默认 8px
+        if (prev) {
+          var prevRect = prev.getBoundingClientRect();
+          gap = rect.top - prevRect.bottom;
+        }
+        floater.style.bottom = (window.innerHeight - rect.top + gap) + "px";
+      }
       var floater = document.createElement("div");
       floater.id = "cao-floater";
       floater.title = "CAO 屏蔽管理";
@@ -868,6 +883,10 @@
         if (url) window.open(url, "_blank");
       });
       document.body.appendChild(floater);
+      // 等 DOM 稳定后定位，以及定期重新定位（SPA 导航时）
+      setTimeout(positionFloater, 500);
+      setTimeout(positionFloater, 1500);
+      setInterval(positionFloater, 2000);
     })();
   });
 
