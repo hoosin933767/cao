@@ -630,7 +630,14 @@
     void el.offsetWidth;
     el.classList.add("ca-breathe");
     // 动画结束后变回黑色
-    setTimeout(function() { el.classList.remove("active"); }, 2500);
+    setTimeout(function() {
+      el.classList.remove("active");
+      var img = el.querySelector("img");
+      if (img) img.src = blackIconData;
+    }, 2500);
+    // 立即换绿色图标
+    var img = el.querySelector("img");
+    if (img) img.src = greenIconData;
   }
 
   /** 记录屏蔽历史（仅保留最近 MAX_BLOCK_HISTORY 条） */
@@ -863,8 +870,9 @@
       var floater = document.createElement("div");
       floater.id = "cao-floater";
       floater.title = "CAO 屏蔽管理";
-      var iconData = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAACj0lEQVR4nO2VX0hTcRTHP+dupjOjEEcEIb2FZYRQBEEPPRZuiemiiMAeDHoxk5pY0KACJ0RQD1HQU73oHWguS5JIgqgnIYuK6iUhKhFEi3S13dPLJte5f22LXnbgwjnnnvM9H36/3/1dIW6nBpvWuZxldTELt6CVCr8cGN8WIzpx1Wcu8I9M/OGWY6j0AJvT1EQUHotFd7DJfFVsAMNFJAT6MkNNucB+DJ733D9UX3SAgCf8c/ZL9VGEJ1lqV0ct63yxASThdIUP1ziJTqJsyNihhDDoCnrMqaICAPiHW/aBjCTnU9iMYnj6vP0vCgUw7EHQG3ooopdy6KsRrDH/8MGtRQUA6G0MXRDRi4CV9GoW+GCLq8Aw22+2lxUCkHap/UMtuzHoAGlAeA/GuUg08qncUTYG7FgqVE4GD5g3UmmcveddI7pqGwZuFapUmRMcM5WL1uuAz/yRESAtWLi1FuUd4Iqn3ga95pZlgx80b5SocQWkGXCmkLFQJkXlzIotyGZBjzklwm1bqs5+P3SOtlZL1PEMxJdmOIAhok8r1k6P/zUAgEK/PY7FrD0JvzyibUBtFolHFRP1nYG949H8AKzI8ptTpM7mb8/SPq/qaAsEAhbkcQYS5h9u/Qqsjw81XVXTRxbm3UGEzky6KtLR5xm4lojT7VEuNrUEoLpp4bvbRGjK1KAw2tc4cN2eyx9A+I0uRTvjT6bh/ZWyeByxdRUCIBYxTb3QUVHtBqNBRXcpfDSEW8FGcyh5eEEAmkIMiIng6/WGBnPVyesrAFBwrISS070eM+fhBQGIJJ10YcR+uv85QNLwOSecyKe1KACqvLnsMT//N4BCrARQAigBlADy/x0jdyxUAQyRu/nq/AEHCdGWymvi9wAAAABJRU5ErkJggg==";
-      floater.innerHTML = '<img src="' + iconData + '" alt="CAO">';
+      var blackIconData = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAABhUlEQVR4nO3VP0gcQRTH8Y+izWFARCvD9YeKWBmCZRpBCKmFgGUaGxtr+xSSLq0pTCxioQQbQdDmAgk2Ikcai4hBCEElSqJeir3jLuP9WfZutbkfzDK7sO/3nZn33nSpqB85DCGDP/iBL7iUol7iEMU64wqbGEsLIIP3DQDK4wKjaUH0YjsGxGpaADCI4xgQa8imBTGN2xgQp3iSFsRSDIAizjGSBkBXCeImMPyJQvDtQJQ/qeipqDoK2MC4qFd8DiBeNYjxqBTnOWYxIzq6vlbAsvjt/10I9bgE/1ft47vBVzxLCvEmCFjdHwZwVMe4eiyjJynAlPrHsBDDfAvdyo8E2g/ec1Xz8Sb/nmFOVO4t6URlRR9E2/la8z4y36pxWfmqoHl8bGJcxCdRmbdFezEMw3skEwZJnIWiUqqlayxiApP4hrdYL4G0TTvurvIaL9pp0ki7NQDalmBxFObAxn2ahwC/MJwkSNJGFOoA3x8SILE6AB2ADkAHoJXreEXlen2XNMg//IC/Gg5tkJUAAAAASUVORK5CYII=";
+      var greenIconData = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAACBElEQVR4nO3Vz4tOcRTH8dcMEkZJIylNuhuNH0mR8s0fQClZzEK6NTbKZhpSE8qCjYUNC6VsLptppthMZBKpGyvlRwjdMqUopZEIY1g8d3J7PD9mnufB5vnUre85nXO+7+4599wOuaI0XoZerMBifMM7PMhC8sVfUkeUxjGOYW2VmK+4haEsJI9bDdCJUTysEbMQu3AvSuMNLQfIQvIZ+3G7TuwSnGg1QMfMIUrjbjzCqjo5oziShWSipQA5xE6Mlfsr6D12ZyG53yxAZ9HIQnIdp2eR143xKI3XtxQg10mcwnSZ/wNeFuwujERpvKAZgKqvOkrj7RjAZrzAcbzGOLYUQg9lIblQpcZSbFTaLV2YVGrfkywkn2oC1ADrwXMsyl3PspCsK4tZjbPYi/kVykwrDfzRSi2oqXz6LxVcvcX9EKXxcqToq3I5pdbfxZ05A+QaLrN3FM796KmTfxODWUimGgUo35y9hfOmOrkf0Z+FZJoGZmBGURq/xcrcHME+nMFgnboDWUjOzRjVejQbTRQA1uQQe+rk3MD5oqMZgO+F89b8qaVhHMhC8rNVAD+q+KcwpLQ/tuEVLuJa+eXNAvxRLIfqy0JydbZFGv0KYF4F3+G5XN4sQPmkjxWn+18AFDWJg40ktgrgaRaSN/8ToGG1AdoAbYA2QDN/w8t+/xGvNFrkF6QQgmQKYaQdAAAAAElFTkSuQmCC";
+      floater.innerHTML = '<img src="' + blackIconData + '" alt="CAO">';
       floater.addEventListener("click", function() {
         var url = (chrome.runtime && chrome.runtime.getURL) ? chrome.runtime.getURL("block.html") : "";
         if (url) window.open(url, "_blank");

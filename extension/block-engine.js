@@ -55,10 +55,20 @@
       var fb = document.getElementById("cao-floater");
       if (fb) {
         fb.classList.add("active");
+        var fbImg = fb.querySelector("img");
+        if (fbImg) {
+          fbImg.src = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAACBElEQVR4nO3Vz4tOcRTH8dcMEkZJIylNuhuNH0mR8s0fQClZzEK6NTbKZhpSE8qCjYUNC6VsLptppthMZBKpGyvlRwjdMqUopZEIY1g8d3J7PD9mnufB5vnUre85nXO+7+4599wOuaI0XoZerMBifMM7PMhC8sVfUkeUxjGOYW2VmK+4haEsJI9bDdCJUTysEbMQu3AvSuMNLQfIQvIZ+3G7TuwSnGg1QMfMIUrjbjzCqjo5oziShWSipQA5xE6Mlfsr6D12ZyG53yxAZ9HIQnIdp2eR143xKI3XtxQg10mcwnSZ/wNeFuwujERpvKAZgKqvOkrj7RjAZrzAcbzGOLYUQg9lIblQpcZSbFTaLV2YVGrfkywkn2oC1ADrwXMsyl3PspCsK4tZjbPYi/kVykwrDfzRSi2oqXz6LxVcvcX9EKXxcqToq3I5pdbfxZ05A+QaLrN3FM796KmTfxODWUimGgUo35y9hfOmOrkf0Z+FZJoGZmBGURq/xcrcHME+nMFgnboDWUjOzRjVejQbTRQA1uQQe+rk3MD5oqMZgO+F89b8qaVhHMhC8rNVAD+q+KcwpLQ/tuEVLuJa+eXNAvxRLIfqy0JydbZFGv0KYF4F3+G5XN4sQPmkjxWn+18AFDWJg40ktgrgaRaSN/8ToGG1AdoAbYA2QDN/w8t+/xGvNFrkF6QQgmQKYaQdAAAAAElFTkSuQmCC";
+        }
         fb.classList.remove("ca-breathe");
         void fb.offsetWidth;
         fb.classList.add("ca-breathe");
-        setTimeout(function() { fb.classList.remove("active"); }, 2500);
+        setTimeout(function() {
+          fb.classList.remove("active");
+          var img2 = fb.querySelector("img");
+          if (img2) {
+            img2.src = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAABhUlEQVR4nO3VP0gcQRTH8Y+izWFARCvD9YeKWBmCZRpBCKmFgGUaGxtr+xSSLq0pTCxioQQbQdDmAgk2Ikcai4hBCEElSqJeir3jLuP9WfZutbkfzDK7sO/3nZn33nSpqB85DCGDP/iBL7iUol7iEMU64wqbGEsLIIP3DQDK4wKjaUH0YjsGxGpaADCI4xgQa8imBTGN2xgQp3iSFsRSDIAizjGSBkBXCeImMPyJQvDtQJQ/qeipqDoK2MC4qFd8DiBeNYjxqBTnOWYxIzq6vlbAsvjt/10I9bgE/1ft47vBVzxLCvEmCFjdHwZwVMe4eiyjJynAlPrHsBDDfAvdyo8E2g/ec1Xz8Sb/nmFOVO4t6URlRR9E2/la8z4y36pxWfmqoHl8bGJcxCdRmbdFezEMw3skEwZJnIWiUqqlayxiApP4hrdYL4G0TTvurvIaL9pp0ki7NQDalmBxFObAxn2ahwC/MJwkSNJGFOoA3x8SILE6AB2ADkAHoJXreEXlen2XNMg//IC/Gg5tkJUAAAAASUVORK5CYII=";
+          }
+        }, 2500);
       }
     } catch (e) {
       console.warn("[BlockEngine] saveBlockHistory error:", e);

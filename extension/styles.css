@@ -85,12 +85,6 @@
   width: 22px;
   height: 22px;
   display: block;
-  filter: brightness(0);
-  transition: filter 0.3s;
-}
-
-#cao-floater.active img {
-  filter: none;
 }
 
 #cao-floater.ca-breathe {
