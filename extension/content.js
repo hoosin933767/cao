@@ -654,13 +654,13 @@
   }
 
   /** 记录屏蔽历史（重试机制，避免 Extension context invalidated 等临时错误导致记录丢失） */
-  async function saveBlockHistory(handle, name, avatar, retries) {
+  async function saveBlockHistory(handle, name, avatar, replyText, retries) {
     if (retries === undefined) retries = 2;
     for (var attempt = 0; attempt <= retries; attempt++) {
       try {
         const d = await chrome.storage.local.get(blockHistoryKey);
         let list = d[blockHistoryKey] || [];
-        list.unshift({ handle: handle.toLowerCase(), name: name || handle, avatar: avatar || "", blockedAt: Date.now() });
+        list.unshift({ handle: handle.toLowerCase(), name: name || handle, avatar: avatar || "", replyText: replyText || "", blockedAt: Date.now() });
         if (list.length > MAX_BLOCK_HISTORY) list = list.slice(0, MAX_BLOCK_HISTORY);
         await chrome.storage.local.set({ [blockHistoryKey]: list });
         triggerFloaterBreath();
@@ -733,7 +733,7 @@
         var list = d[storageKey] || [];
         if (!list.includes(handle)) { list.push(handle); await chrome.storage.local.set({ [storageKey]: list.sort() }); }
       } catch (e) {}
-      await saveBlockHistory(handle, displayName, getArticleAvatar(article));
+      await saveBlockHistory(handle, displayName, getArticleAvatar(article), replyText);
       hideBlockedAccountsSoon();
     } else {
       return { ok: false, error: (blockResult && blockResult.error) || "屏蔽失败" };
@@ -987,7 +987,7 @@
               await chrome.storage.local.set({ [storageKey]: list.sort() });
             }
           } catch (e) {}
-          await saveBlockHistory(handle, getArticleDisplayName(article), getArticleAvatar(article));
+          await saveBlockHistory(handle, getArticleDisplayName(article), getArticleAvatar(article), getArticleReplyText(article));
         }
         await sleep(500);
       }
@@ -1128,7 +1128,7 @@
             console.log("[CAO] reply text:", replyText);
             console.log("[CAO] display name:", displayName);
             // 记录检测结果（无论自动屏蔽是否开启）
-            await saveBlockHistory(handle, displayName, getArticleAvatar(article));
+            await saveBlockHistory(handle, displayName, getArticleAvatar(article), replyText);
             console.log("[CAO] history saved, now auto-blocking", handle);
             // 自动屏蔽 + 自动隐藏
             await autoBlockAndHide(article, handle);

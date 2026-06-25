@@ -43,6 +43,7 @@
       var avatarHtml = item.avatar ? '<img src="' + item.avatar.replace(/"/g,"&quot;") + '" class="history-avatar" alt="">' : '<span class="history-avatar-placeholder">?</span>';
       var safeHandle = h(item.handle);
       var attrHandle = item.handle.replace(/"/g,"&quot;");
+      var replyHtml = item.replyText ? '<span class="history-reply">' + h(item.replyText.substring(0, 80)) + '</span>' : '';
       return '<tr>' +
         '<td>' +
           '<a class="history-account" href="https://x.com/' + safeHandle + '" target="_blank">' +
@@ -50,6 +51,7 @@
             '<span class="history-text-wrap">' +
               '<span class="history-name">' + h(item.name || item.handle) + '</span>' +
               '<span class="history-handle">@' + safeHandle + '</span>' +
+              replyHtml +
             '</span>' +
           '</a>' +
         '</td>' +
