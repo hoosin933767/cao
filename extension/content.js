@@ -1076,15 +1076,17 @@
           }
 
           if (!featureResult && displayName) {
-            const r = window.SpamEngine.detectScam(displayName, handle, pageAuthorHandle);
-            if (r.isScam) { featureResult = r; }
+            // 显示名只检查引流信号（名字本身不是发言，不应触发其他特征）
+            if (window.SpamEngine.hasRedirectSignal(displayName)) {
+              featureResult = { isScam: false, score: 1, features: [{ k: "\u5f15\u6d41\u4fe1\u53f7", v: displayName, p: 1 }], matchedKeyword: null, matchedRedirect: displayName };
+            }
           }
 
-          // 3. 转发数量检测：仅在有其他特征命中时加权，不做独立判定
+          // 3. 转发数量检测：仅在有其他特征命中时加权，且需要≥3次转发
           var shareCount = getArticleShareCount(article);
-          if (shareCount > 0 && featureResult) {
-              featureResult.score += 2;
-              featureResult.features.push({ k: "\u8f6c\u53d1\u91cf", v: shareCount + "", p: 2 });
+          if (shareCount >= 3 && featureResult) {
+              featureResult.score += 1;
+              featureResult.features.push({ k: "\u8f6c\u53d1\u91cf", v: shareCount + "", p: 1 });
               if (featureResult.score >= 3) featureResult.isScam = true;
           }
 

@@ -1,10 +1,10 @@
 (function() {
   "use strict";
   var ADULT_STRONG = ["约炮","炮友","yp","裸聊","色色","色情","打飞机","破处","处男","约P","约啪","固炮","寻炮","看片"];
-  var ADULT_WEAK = ["骚","处女","涩","上门","空降","同城","私密","刺激","诱惑","妹子","少妇","同城约","约爱","资源","成人内容","无偿","交友"];
+  var ADULT_WEAK = ["骚","处女","涩","上门","空降","同城","少妇","同城约","约爱","成人内容","无偿","交友"];
   var ADULT_PROMO = ["线下资源","线下约","线更新","同步更新","真实可靠"];
-  var REDIRECT_SIGNALS = ["看简介","点简介","点我头像","点主页","点我主页","看主页","简介有","点击主页","戳主页","点我","个人主页","看个人主页","看置顶","置顶推文","置顶有","简介","主页有","的主页"];
-  var PINYIN_SIGNALS = [{ pattern: /sao/i, keyword: "骚", pts: 2 }];
+  var REDIRECT_SIGNALS = ["看简介","点简介","点我头像","点主页","点我主页","看主页","简介有","点击主页","戳主页","个人主页","看个人主页","看置顶","置顶推文","置顶有","主页有"];
+  var PINYIN_SIGNALS = [{ pattern: /\bsao\b/i, keyword: "骚", pts: 2 }];
   var CUSTOM_KEYWORDS = { adultStrong: [], adultWeak: [], promo: [], redirect: [] };
   var CUSTOM_KW_LOADED = false;
   async function loadCustomKeywords() {
@@ -145,17 +145,17 @@
       else { if (run.length >= 2) runs.push(run); run = ""; }
     }
     if (run.length >= 2) runs.push(run);
-    // 多个字母段 → 只要所有段都含元音（正常英文词），就不算杂乱
+    // 多个字母段 → 所有段都含元音（含y）则为正常英文，不算杂乱
     if (runs.length >= 2) {
-      var hasGibberish = runs.some(function(r) { return r.length >= 4 && !/[aeiouAEIOU]/.test(r); });
+      var hasGibberish = runs.some(function(r) { return r.length >= 4 && !/[aeiouyAEIOUY]/.test(r); });
       if (!hasGibberish) return false;
     }
-    // 单个字母段 ≥5 且全部辅音（无元音），说明是无意义键盘敲击
-    if (runs.length === 1 && runs[0].length >= 5 && !/[aeiouAEIOU]/.test(runs[0])) return true;
+    // 单个字母段 ≥5 且全部辅音（无元音，含y），说明是无意义键盘敲击
+    if (runs.length === 1 && runs[0].length >= 5 && !/[aeiouyAEIOUY]/.test(runs[0])) return true;
     var positions = [], re = /[\uD800-\uDBFF][\uDC00-\uDFFF]|[\u2600-\u27FF]|[\uFE00-\uFE0F]/g, match;
     while ((match = re.exec(text)) !== null) { positions.push(match.index); }
-    // 字母+emoji混合即杂乱
-    if (runs.length >= 1 && positions.length >= 1) return true;
+    // 字母+emoji混合 → 需要至少2个emoji才认为可疑（单个emoji太常见）
+    if (runs.length >= 1 && positions.length >= 2) return true;
     if (positions.length > 0) {
       var left = text.slice(0, positions[0]).replace(/[\s,，。、！？!?]/g, "");
       var right = text.slice(positions[0] + 2).replace(/[\s,，。、！？!?]/g, "");
@@ -166,10 +166,10 @@
   function isHandleRandom(handle) {
     var letters = (handle || "").replace(/[^a-zA-Z]/g, "");
     if (letters.length <= 6) return false;
-    if (!/[aeiouAEIOU]/.test(letters)) return true;
+    if (!/[aeiouyAEIOUY]/.test(letters)) return true;
     var consec = 0;
     for (var i = 0; i < letters.length; i++) {
-      if (/[^aeiouAEIOU]/.test(letters[i])) { consec++; if (consec >= 5) return true; }
+      if (/[^aeiouyAEIOUY]/.test(letters[i])) { consec++; if (consec >= 5) return true; }
       else consec = 0;
     }
     return false;
@@ -252,8 +252,6 @@
       }
       // 纯 emoji 回复/名字：无文字内容本身就是可疑信号
       if (isPureEmojiText(text)) { score += 1; features.push({ k: "\u7eafemoji", v: "", p: 1 }); }
-      // 含中文标点（名字中刻意插入逗号括号规避关键词匹配）
-      if (hasChinesePunct(text)) { score += 1; features.push({ k: "\u4e2d\u6587\u6807\u70b9", v: "", p: 1 }); }
     }
     if (handle && isHandleRandom(handle)) { score += 1; features.push({ k: "handle \u968f\u673a", v: handle, p: 1 }); }
     return { isScam: score >= 3, score: score, features: features, matchedKeyword: matchedKeyword, matchedRedirect: matchedRedirect };
@@ -266,12 +264,15 @@
     return stripped.length === 0;
   }
 
-  /** 检测文本是否含中文标点（逗号/括号等） */
-  function hasChinesePunct(t) {
-    if (!t) return false;
-    return /[\u3000-\u303f\uff00-\uffef]/.test(t);
+  /** 检查文本是否包含引流信号（供 displayName 专用） */
+  function hasRedirectSignal(text) {
+    if (!text) return false;
+    var allRedirect = REDIRECT_SIGNALS.concat(CUSTOM_KEYWORDS.redirect || []);
+    for (var i = 0; i < allRedirect.length; i++) {
+      if (text.indexOf(allRedirect[i]) !== -1) return true;
+    }
+    return false;
   }
-
   var ready = false, readyCallbacks = [];
   async function init() {
     try {
@@ -283,6 +284,6 @@
     } catch (e) { console.error("[SpamEngine] init failed:", e); }
   }
   function onReady(cb) { if (ready) return cb(); readyCallbacks.push(cb); }
-  window.SpamEngine = { init: init, onReady: onReady, ready: function() { return ready; }, normalizeText: normalizeText, detectScam: detectScam, trainKeywords: trainKeywords, loadCustomKeywords: loadCustomKeywords, addCustomKeyword: addCustomKeyword, removeCustomKeyword: removeCustomKeyword, getCustomKeywords: getCustomKeywords };
+  window.SpamEngine = { init: init, onReady: onReady, ready: function() { return ready; }, normalizeText: normalizeText, detectScam: detectScam, hasRedirectSignal: hasRedirectSignal, trainKeywords: trainKeywords, loadCustomKeywords: loadCustomKeywords, addCustomKeyword: addCustomKeyword, removeCustomKeyword: removeCustomKeyword, getCustomKeywords: getCustomKeywords };
   init();
 })();
