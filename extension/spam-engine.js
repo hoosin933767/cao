@@ -95,10 +95,15 @@
     ["8","吧"],["0","你"],["5","我"],
   ];
   var PINYIN_MAP_SORTED = PINYIN_MAP.slice().sort(function(a,b){return b[0].length-a[0].length});
-  var ALL_MAPS = (PINYIN_MAP_SORTED.concat(LETTER_MAP)).concat(EMOJI_MAP);
   function normalizeText(text) {
     var t = text;
-    for (var i = 0; i < ALL_MAPS.length; i++) { t = t.split(ALL_MAPS[i][0]).join(ALL_MAPS[i][1]); }
+    // emoji 映射始终执行（与语言无关）
+    for (var i = 0; i < EMOJI_MAP.length; i++) { t = t.split(EMOJI_MAP[i][0]).join(EMOJI_MAP[i][1]); }
+    // 拼音/字母→中文映射仅在文本已有中文时才执行，防止纯英文误替换
+    if (/[\u4e00-\u9fff]/.test(t)) {
+      for (var i = 0; i < PINYIN_MAP_SORTED.length; i++) { t = t.split(PINYIN_MAP_SORTED[i][0]).join(PINYIN_MAP_SORTED[i][1]); }
+      for (var i = 0; i < LETTER_MAP.length; i++) { t = t.split(LETTER_MAP[i][0]).join(LETTER_MAP[i][1]); }
+    }
     return t;
   }
   function extractCJK(text) {
