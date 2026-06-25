@@ -929,17 +929,29 @@
 
   async function syncSupporter() {
     try {
-      const handle = currentUserHandle || currentXHandle;
-      if (!handle) return;
+      // 优先用 getMyHandle()，它从 window.__INITIAL_STATE__ 读，最可靠
+      var handle = getMyHandle() || currentXHandle;
+      if (!handle) {
+        // handle 还未就绪，等 15 秒再试一次
+        setTimeout(syncSupporter, 15000);
+        return;
+      }
       const data = await chrome.storage.local.get(SUPPORTER_SYNC_KEY);
       const lastSync = data[SUPPORTER_SYNC_KEY] || 0;
       // 每天最多同步一次
       if (Date.now() - lastSync < 86400000) return;
-      const name = currentXDisplayName || handle;
+      // 从 __INITIAL_STATE__ 获取显示名
+      var displayName = handle;
+      try {
+        var initial = window.__INITIAL_STATE__;
+        if (initial && initial.meta && initial.meta.currentUser && initial.meta.currentUser.name) {
+          displayName = initial.meta.currentUser.name;
+        }
+      } catch (e) {}
       await fetch(CAO_API_BASE_URL + "/api/supporter", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ handle, name }),
+        body: JSON.stringify({ handle: handle, name: displayName }),
       });
       await chrome.storage.local.set({ [SUPPORTER_SYNC_KEY]: Date.now() });
     } catch (e) {
