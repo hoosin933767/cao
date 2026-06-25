@@ -252,6 +252,8 @@
       }
       // 纯 emoji 回复/名字：无文字内容本身就是可疑信号
       if (isPureEmojiText(text)) { score += 1; features.push({ k: "\u7eafemoji", v: "", p: 1 }); }
+      // 中文标点 → 仅在有其他特征命中时加权（不独立触发）
+      if (score > 0 && hasChinesePunct(text)) { score += 1; features.push({ k: "\u4e2d\u6587\u6807\u70b9", v: "", p: 1 }); }
     }
     if (handle && isHandleRandom(handle)) { score += 1; features.push({ k: "handle \u968f\u673a", v: handle, p: 1 }); }
     return { isScam: score >= 3, score: score, features: features, matchedKeyword: matchedKeyword, matchedRedirect: matchedRedirect };
@@ -262,6 +264,12 @@
     if (!t) return false;
     var stripped = t.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]|[\u2600-\u27FF]|[\uFE00-\uFE0F]|[\u{1F000}-\u{1FFFF}]/gu, "").replace(/\s+/g, "").trim();
     return stripped.length === 0;
+  }
+
+  /** 检测文本是否含中文标点（逗号/括号等） */
+  function hasChinesePunct(t) {
+    if (!t) return false;
+    return /[\u3000-\u303f\uff00-\uffef]/.test(t);
   }
 
   /** 检查文本是否包含引流信号（供 displayName 专用） */
