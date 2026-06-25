@@ -36,7 +36,7 @@ async function kv(method, ...args) {
 
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
   if (req.method === "OPTIONS") return res.status(200).end();
@@ -82,6 +82,15 @@ export default async function handler(req, res) {
       return res.json({ ok: false, error: "kv zadd error: " + (zaddResult.text || JSON.stringify(zaddResult)) });
     }
 
+    return res.json({ ok: true });
+  }
+
+  if (req.method === "DELETE") {
+    const { handle } = req.body || {};
+    if (!handle) return res.json({ ok: false, error: "missing handle" });
+    const normalizedHandle = handle.toLowerCase().replace(/^@/, "");
+    await kv("DEL", "supporter:" + normalizedHandle);
+    await kv("ZREM", "supporters", normalizedHandle);
     return res.json({ ok: true });
   }
 
