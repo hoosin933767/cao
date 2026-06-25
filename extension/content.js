@@ -1107,9 +1107,10 @@
           }
 
           if (!featureResult && displayName) {
-            // 显示名只检查引流信号（名字本身不是发言，不应触发其他特征）
-            if (window.SpamEngine.hasRedirectSignal(displayName)) {
-              featureResult = { isScam: false, score: 1, features: [{ k: "\u5f15\u6d41\u4fe1\u53f7", v: displayName, p: 1 }], matchedKeyword: null, matchedRedirect: displayName };
+            // 显示名检查：成人强词 + 引流信号（高置信度特征）
+            var dnResult = window.SpamEngine.detectDisplayName(displayName);
+            if (dnResult) {
+              featureResult = dnResult;
             }
           }
 

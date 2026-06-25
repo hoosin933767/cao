@@ -278,7 +278,7 @@
     return /[\u3000-\u303f\uff00-\uffef]/.test(t);
   }
 
-  /** 检查文本是否包含引流信号（供 displayName 专用） */
+  /** 检查文本是否包含引流信号 */
   function hasRedirectSignal(text) {
     if (!text) return false;
     var allRedirect = REDIRECT_SIGNALS.concat(CUSTOM_KEYWORDS.redirect || []);
@@ -286,6 +286,35 @@
       if (text.indexOf(allRedirect[i]) !== -1) return true;
     }
     return false;
+  }
+
+  /** 检查显示名：高置信度特征（成人强词 + 引流信号） */
+  function detectDisplayName(text) {
+    if (!text) return null;
+    var normCJK = extractCJK(text);
+    if (normCJK.length > 0) {
+      // 成人强词
+      var allStrong = ADULT_STRONG.concat(CUSTOM_KEYWORDS.adultStrong || []);
+      for (var i = 0; i < allStrong.length; i++) {
+        var kwC = extractCJK(allStrong[i]);
+        if (kwC.length && normCJK.join("").indexOf(kwC.join("")) !== -1) {
+          return { isScam: true, score: 2, features: [{ k: "成人关键词", v: allStrong[i], p: 2 }], matchedKeyword: allStrong[i], matchedRedirect: null };
+        }
+      }
+      // 成人弱词中的高置信词（上门/空降/少妇/同城约）
+      var highConfWeak = ["上门","空降","少妇","同城约"];
+      for (var i = 0; i < highConfWeak.length; i++) {
+        var kwC = extractCJK(highConfWeak[i]);
+        if (kwC.length && normCJK.join("").indexOf(kwC.join("")) !== -1) {
+          return { isScam: true, score: 2, features: [{ k: "成人关键词", v: highConfWeak[i], p: 2 }], matchedKeyword: highConfWeak[i], matchedRedirect: null };
+        }
+      }
+    }
+    // 引流信号
+    if (hasRedirectSignal(text)) {
+      return { isScam: true, score: 1, features: [{ k: "引流信号", v: text, p: 1 }], matchedKeyword: null, matchedRedirect: text };
+    }
+    return null;
   }
   var ready = false, readyCallbacks = [];
   async function init() {
@@ -298,6 +327,6 @@
     } catch (e) { console.error("[SpamEngine] init failed:", e); }
   }
   function onReady(cb) { if (ready) return cb(); readyCallbacks.push(cb); }
-  window.SpamEngine = { init: init, onReady: onReady, ready: function() { return ready; }, normalizeText: normalizeText, detectScam: detectScam, hasRedirectSignal: hasRedirectSignal, trainKeywords: trainKeywords, loadCustomKeywords: loadCustomKeywords, addCustomKeyword: addCustomKeyword, removeCustomKeyword: removeCustomKeyword, getCustomKeywords: getCustomKeywords };
+  window.SpamEngine = { init: init, onReady: onReady, ready: function() { return ready; }, normalizeText: normalizeText, detectScam: detectScam, detectDisplayName: detectDisplayName, hasRedirectSignal: hasRedirectSignal, trainKeywords: trainKeywords, loadCustomKeywords: loadCustomKeywords, addCustomKeyword: addCustomKeyword, removeCustomKeyword: removeCustomKeyword, getCustomKeywords: getCustomKeywords };
   init();
 })();
