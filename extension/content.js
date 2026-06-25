@@ -830,6 +830,8 @@
 
   // init: 从 storage 加载已屏蔽列表 + 广告设置
   chrome.storage.local.get({ [storageKey]: [] }).then(async (data) => {
+    // 清除旧的支持者同步时间戳，确保用户首次运行新版能正常上报
+    chrome.storage.local.remove(SUPPORTER_SYNC_KEY).catch(() => {});
     (data[storageKey] || []).forEach((handle) => blockedAccounts.add(normalizeHandle(handle)));
 
     // 加载广告相关设置
@@ -910,10 +912,9 @@
 
   const SUPPORTER_SYNC_KEY = "caoSupporterLastSync";
 
-  async function syncSupporter() {
+  async function syncSupporter(handle) {
+    if (!handle) return;
     try {
-      var handle = await waitForMyHandle();
-      if (!handle) return;
       const data = await chrome.storage.local.get(SUPPORTER_SYNC_KEY);
       const lastSync = data[SUPPORTER_SYNC_KEY] || 0;
       if (Date.now() - lastSync < 86400000) return;
@@ -925,8 +926,6 @@
       await chrome.storage.local.set({ [SUPPORTER_SYNC_KEY]: Date.now() });
     } catch (e) {}
   }
-
-  setTimeout(syncSupporter, 3000);
 
   // ── 内联屏蔽：在当前推文详情页直接屏蔽（twitter-helper 方案）──
 
@@ -1116,6 +1115,8 @@
 
       const allArticles = document.querySelectorAll('article');
       const myHandle = await waitForMyHandle();
+      // 获取到 handle 后，顺带同步支持者（每天一次）
+      syncSupporter(myHandle);
       const pageAuthorHandle = getPageTweetAuthorHandle();
       for (const article of allArticles) {
         const handle = getArticleHandle(article);
