@@ -895,27 +895,10 @@
       floater.id = "cao-floater";
       floater.title = "CAO 屏蔽管理";
       floater.innerHTML = '<img src="' + blackIconData + '" alt="CAO">';
-      // 初始化时固定获取 block.html URL，避免 Extension context invalidated 后无法获取
       var blockUrl = "";
-      try {
-        blockUrl = chrome.runtime.getURL("block.html");
-      } catch (e) {
-        // fallback：直接用 chrome-extension 协议路径
-        try { blockUrl = "chrome-extension://" + chrome.runtime.id + "/block.html"; } catch (e2) {}
-      }
+      try { blockUrl = chrome.runtime.getURL("block.html"); } catch (e) {}
       floater.addEventListener("click", function() {
-        var url = blockUrl;
-        if (!url) {
-          try { url = chrome.runtime?.getURL ? chrome.runtime.getURL("block.html") : ""; } catch (e) {}
-        }
-        if (url) {
-          try {
-            var w = window.open(url, "_blank");
-            if (!w) { window.location.href = url; }
-          } catch (e) {
-            console.warn("[CAO] floater click error:", e);
-          }
-        }
+        if (blockUrl) window.open(blockUrl, "_blank");
       });
       document.body.appendChild(floater);
     })();
