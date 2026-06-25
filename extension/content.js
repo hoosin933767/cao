@@ -912,25 +912,18 @@
 
   async function syncSupporter() {
     try {
-      // 优先用 getMyHandle()，它从 window.__INITIAL_STATE__ 读，最可靠
-      var handle = getMyHandle() || currentXHandle;
+      // 使用 waitForMyHandle() 轮询获取 handle（最多等 8 秒，500ms 轮询）
+      var handle = await waitForMyHandle();
       if (!handle) {
-        // handle 还未就绪，等 15 秒再试一次
-        setTimeout(syncSupporter, 15000);
+        // 轮询 8 秒后还是没拿到，30 秒后重试
+        setTimeout(syncSupporter, 30000);
         return;
       }
       const data = await chrome.storage.local.get(SUPPORTER_SYNC_KEY);
       const lastSync = data[SUPPORTER_SYNC_KEY] || 0;
       // 每天最多同步一次
       if (Date.now() - lastSync < 86400000) return;
-      // 从 __INITIAL_STATE__ 获取显示名
       var displayName = handle;
-      try {
-        var initial = window.__INITIAL_STATE__;
-        if (initial && initial.meta && initial.meta.currentUser && initial.meta.currentUser.name) {
-          displayName = initial.meta.currentUser.name;
-        }
-      } catch (e) {}
       await fetch(CAO_API_BASE_URL + "/api/supporter", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -942,8 +935,8 @@
     }
   }
 
-  // 延迟执行，确保 handle 已检测到
-  setTimeout(syncSupporter, 5000);
+  // 延迟执行，确保 waitForMyHandle 能正常工作
+  setTimeout(syncSupporter, 1000);
 
   // ── 内联屏蔽：在当前推文详情页直接屏蔽（twitter-helper 方案）──
 
