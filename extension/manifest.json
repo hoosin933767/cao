@@ -36,8 +36,7 @@
       "resources": [
         "block.html",
         "block.css",
-        "block.js",
-        "injected.js"
+        "block.js"
       ],
       "matches": [
         "https://x.com/*",
