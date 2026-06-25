@@ -1,4 +1,8 @@
 (function initTwitterAccountBlocker() {
+  // 全局未捕获异常兜底（防止 Chrome 错误按钮出现）
+  window.addEventListener("unhandledrejection", function(e) {
+    console.warn("[CAO] Unhandled rejection:", e.reason ? (e.reason.message || e.reason) : e);
+  });
   const supportedHosts = new Set(["twitter.com", "www.twitter.com", "x.com", "www.x.com"]);
   const ignoredPaths = new Set([
     "compose",
@@ -62,6 +66,8 @@
             totalMergedCount: autoHandles.length,
             ...getCurrentXUser(),
           });
+        }).catch(function(err) {
+          sendResponse({ error: err.message });
         });
         return true;
       }
@@ -514,21 +520,25 @@
   }
 
   function getArticleDisplayName(article) {
-    const userNameRoot = article.querySelector('[data-testid="User-Name"]');
-    if (!userNameRoot) {
+    try {
+      const userNameRoot = article.querySelector('[data-testid="User-Name"]');
+      if (!userNameRoot) {
+        return "";
+      }
+
+      const handleText = userNameRoot.querySelector('a[href*="/"] span')?.textContent || "";
+      // innerHTML 还原 img[alt] 中的 emoji 字符，再剥掉其余标签
+      var html = userNameRoot.innerHTML;
+      var allText = html
+        .replace(/<img[^>]*alt="([^"]*)"[^>]*>/g, "$1")
+        .replace(/<[^>]+>/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+      var withoutHandle = allText.replace(/@[A-Za-z0-9_]{1,15}.*/, "").trim();
+      return withoutHandle || handleText.trim();
+    } catch (e) {
       return "";
     }
-
-    const handleText = userNameRoot.querySelector('a[href*="/"] span')?.textContent || "";
-    // innerHTML 还原 img[alt] 中的 emoji 字符，再剥掉其余标签
-    var html = userNameRoot.innerHTML;
-    var allText = html
-      .replace(/<img[^>]*alt="([^"]*)"[^>]*>/g, "$1")
-      .replace(/<[^>]+>/g, "")
-      .replace(/\s+/g, " ")
-      .trim();
-    var withoutHandle = allText.replace(/@[A-Za-z0-9_]{1,15}.*/, "").trim();
-    return withoutHandle || handleText.trim();
   }
 
   /**
@@ -625,36 +635,43 @@
   var blackIconData = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAACcklEQVR4nO3Xu2tUQRTH8c+92U02MYiFjRaiFhJ8gAhaW2ilCBb+DWIjNjY2YiWI2PgfaKWF2KggohFECy0EUSwUBB9oJYKRPPdazAw7+/CxyTWVB4a7zNw7v++cM2fObCFYCzuwHruxiCbe4cWk1svvZqFEW812Hh8xj2pA+4EHOBDfL+sG2InpKLbY09oZSBsH4zfNuiFaeBaFlvR7YS4+768tx9M3I3WJN+JzCt8iQL7y1FL/I+z7VxAnotj8AIi2EJbkkWO1Q4yGua5GkQWdfZCEE1zyyOE/QJRxrJG1kdhf9L5cxIEJXNEfghl8yOAqfMaG+G0+4d9mStlLUaBqaZi1eBSnsDUKn8MrIWO2CJ4YxcWS0+2wsqUo3l5jzIy5KWzHJsGLI3gppP3ruIg+S54wYRQm1xjLx/fqDs9nrOtZ+V489OuzZQ5vcPx37hnR79ZGI3Rd070f9mfw2/BVd/Ys9LQKd7D5dwDJcogEdSRbSRtns/cuZWODUrnCUyF8Q1sS2SisMk14AyaLMbinP3PyNJ7FnjhPSv+hAUbxNpv8OsZwM0INOk1TuC4sVzwHGNdJyUrY2Xd13JzXkqVM/Ckm9e+voQAKwQPPdcc1FbNBx3iFJ0L6ssKKWsZ2OxNNIAnmsrDLP+ExTgoFb8XiyW0tvM+E2zrpdaaJ8SKeIUXXGbLiu0QO8E53zCtcaAaNpsHpu2IbBJBWPq1TbIqe92uzX3lgBrvi2FDluY77XYkvQnEpDHlpreuCWQruH1jdVgPAcsTrBliW/Qf4D7CsmhwtVb30e9UBJnROxonVAqiEsM0LF9NDsf9W7Bv67/tPyfTpZUC5YpgAAAAASUVORK5CYII=";
   var greenIconData = "data:image/png;base64,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";
 
-  /** 浮动按钮触发呼吸动画 + 闪绿 */
+  /** 浮动按钮触发呼吸动画 + 闪绿（防抖：清除已有 timer，避免累积） */
+  var breathTimer = null;
   function triggerFloaterBreath() {
     var el = document.getElementById("cao-floater");
     if (!el) return;
-    el.classList.add("active");
+    if (breathTimer) clearTimeout(breathTimer);
     el.classList.remove("ca-breathe");
     void el.offsetWidth;
     el.classList.add("ca-breathe");
-    // 动画结束后变回黑色
-    setTimeout(function() {
-      el.classList.remove("active");
-      var img = el.querySelector("img");
-      if (img) img.src = blackIconData;
-    }, 2500);
-    // 立即换绿色图标
     var img = el.querySelector("img");
     if (img) img.src = greenIconData;
+    breathTimer = setTimeout(function() {
+      var img2 = el.querySelector("img");
+      if (img2) img2.src = blackIconData;
+      breathTimer = null;
+    }, 2500);
   }
 
-  /** 记录屏蔽历史（仅保留最近 MAX_BLOCK_HISTORY 条） */
-  async function saveBlockHistory(handle, name, avatar) {
-    try {
-      const d = await chrome.storage.local.get(blockHistoryKey);
-      let list = d[blockHistoryKey] || [];
-      list.unshift({ handle: handle.toLowerCase(), name: name || handle, avatar: avatar || "", blockedAt: Date.now() });
-      if (list.length > MAX_BLOCK_HISTORY) list = list.slice(0, MAX_BLOCK_HISTORY);
-      await chrome.storage.local.set({ [blockHistoryKey]: list });
-      triggerFloaterBreath();
-    } catch (e) {
-      console.warn("[CAO] saveBlockHistory error:", e);
+  /** 记录屏蔽历史（重试机制，避免 Extension context invalidated 等临时错误导致记录丢失） */
+  async function saveBlockHistory(handle, name, avatar, retries) {
+    if (retries === undefined) retries = 2;
+    for (var attempt = 0; attempt <= retries; attempt++) {
+      try {
+        const d = await chrome.storage.local.get(blockHistoryKey);
+        let list = d[blockHistoryKey] || [];
+        list.unshift({ handle: handle.toLowerCase(), name: name || handle, avatar: avatar || "", blockedAt: Date.now() });
+        if (list.length > MAX_BLOCK_HISTORY) list = list.slice(0, MAX_BLOCK_HISTORY);
+        await chrome.storage.local.set({ [blockHistoryKey]: list });
+        triggerFloaterBreath();
+        return;
+      } catch (e) {
+        if (attempt >= retries) {
+          console.warn("[CAO] saveBlockHistory failed after " + (retries + 1) + " attempts:", e);
+        } else {
+          await new Promise(function(r) { setTimeout(r, 200 * (attempt + 1)); });
+        }
+      }
     }
   }
 
@@ -844,7 +861,9 @@
         childList: true,
         subtree: true,
       });
-      scanWithVectorDB().then(function() { injectReportButtons(); });
+      scanWithVectorDB().then(function() { injectReportButtons(); }).catch(function(e) {
+        console.warn("[CAO] initial scan error:", e);
+      });
     }
 
     // 首次加载：如果在主页，启动广告 observer
@@ -876,11 +895,23 @@
       floater.title = "CAO 屏蔽管理";
       floater.innerHTML = '<img src="' + blackIconData + '" alt="CAO">';
       floater.addEventListener("click", function() {
-        var url = (chrome.runtime && chrome.runtime.getURL) ? chrome.runtime.getURL("block.html") : "";
-        if (url) window.open(url, "_blank");
+        try {
+          var url = chrome.runtime && chrome.runtime.getURL ? chrome.runtime.getURL("block.html") : "";
+          if (url) {
+            var w = window.open(url, "_blank");
+            if (!w) {
+              // 弹窗被拦截 → 用 location 打开
+              window.location.href = url;
+            }
+          }
+        } catch (e) {
+          console.warn("[CAO] floater click error:", e);
+        }
       });
       document.body.appendChild(floater);
     })();
+  }).catch(function(e) {
+    console.warn("[CAO] init chain error:", e);
   });
 
   // ── 内联屏蔽：在当前推文详情页直接屏蔽（twitter-helper 方案）──
@@ -1103,6 +1134,7 @@
             await autoBlockAndHide(article, handle);
           }
         } catch (e) {
+          console.warn("[CAO] scan iteration error for " + (handle || "?"), e);
         }
       }
     } finally {
@@ -1220,6 +1252,8 @@
         chrome.storage.local.get(blockHistoryKey).then(function(d) {
           var list = d[blockHistoryKey] || [];
           sendResponse({ ok: true, list: list });
+        }).catch(function(err) {
+          sendResponse({ ok: false, error: err.message });
         });
         return true;
       }
@@ -1234,9 +1268,9 @@
           var idx = list.indexOf(nh);
           if (idx !== -1) {
             list.splice(idx, 1);
-            chrome.storage.local.set({ [storageKey]: list });
+            chrome.storage.local.set({ [storageKey]: list }).catch(function() {});
           }
-        });
+        }).catch(function() {});
         sendResponse({ ok: true });
         return true;
       }
