@@ -1,7 +1,7 @@
 (function() {
   "use strict";
   var ADULT_STRONG = ["约炮","炮友","yp","裸聊","色色","色情","打飞机","破处","处男","约P","约啪","固炮","寻炮","看片"];
-  var ADULT_WEAK = ["骚","处女","涩","上门","空降","同城","少妇","同城约","约爱","成人内容","无偿","交友"];
+  var ADULT_WEAK = ["骚","处女","涩","上门","空降","同城","少妇","同城约","约爱","成人内容","无偿","交友","反差","返差"];
   var ADULT_PROMO = ["线下资源","线下约","线更新","同步更新","真实可靠"];
   var REDIRECT_SIGNALS = ["看简介","点简介","点我头像","点主页","点我主页","看主页","简介有","点击主页","戳主页","个人主页","看个人主页","看置顶","置顶推文","置顶有","主页有"];
   var PINYIN_SIGNALS = [{ pattern: /\bsao\b/i, keyword: "骚", pts: 2 }];
@@ -145,6 +145,12 @@
       else { if (run.length >= 2) runs.push(run); run = ""; }
     }
     if (run.length >= 2) runs.push(run);
+    // 中文混排 + 多处短字母数字段 → 关键词堆砌（如"30+的ak体制内老师"）
+    var hasCJK = /[\u4e00-\u9fff]/.test(text);
+    if (runs.length >= 2 && hasCJK) {
+      var hasShortRun = runs.some(function(r) { return r.length <= 3; });
+      if (hasShortRun) return true;
+    }
     // 多个字母段 → 所有段都含元音（含y）则为正常英文，不算杂乱
     if (runs.length >= 2) {
       var hasGibberish = runs.some(function(r) { return r.length >= 4 && !/[aeiouyAEIOUY]/.test(r); });
