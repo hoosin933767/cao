@@ -733,3 +733,72 @@ tbody tr:last-child td {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.15);
 }
+
+/* ── 支持者列表 ── */
+
+.supporters-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.supporter-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  transition: all 0.2s;
+}
+.supporter-item:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.supporter-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.supporter-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.supporter-handle {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.supporter-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.supporter-first {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.supporter-duration {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.supporters-desc {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.5);
+  margin-bottom: 16px;
+  text-align: center;
+}

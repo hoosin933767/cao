@@ -22,6 +22,7 @@
   const storageKey = "mv3BlockedTwitterAccounts";
   const detectedAccountsStorageKey = "mv3DetectedTwitterAccounts";
   const MAX_DETECTED_ACCOUNTS = 10000;
+  const CAO_API_BASE_URL = "https://vercel-api-hazel-gamma.vercel.app";
   const blockHistoryKey = "mv3BlockHistory";
   const MAX_BLOCK_HISTORY = 100;
   const adAccountsStorageKey = "mv3AdTwitterAccounts";
@@ -921,6 +922,33 @@
   }).catch(function(e) {
     console.warn("[CAO] init chain error:", e);
   });
+
+  // ── 支持者同步（自动上报 handle 到云端）──
+
+  const SUPPORTER_SYNC_KEY = "caoSupporterLastSync";
+
+  async function syncSupporter() {
+    try {
+      const handle = currentUserHandle || currentXHandle;
+      if (!handle) return;
+      const data = await chrome.storage.local.get(SUPPORTER_SYNC_KEY);
+      const lastSync = data[SUPPORTER_SYNC_KEY] || 0;
+      // 每天最多同步一次
+      if (Date.now() - lastSync < 86400000) return;
+      const name = currentXDisplayName || handle;
+      await fetch(CAO_API_BASE_URL + "/api/supporter", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ handle, name }),
+      });
+      await chrome.storage.local.set({ [SUPPORTER_SYNC_KEY]: Date.now() });
+    } catch (e) {
+      // 静默失败，不影响用户使用
+    }
+  }
+
+  // 延迟执行，确保 handle 已检测到
+  setTimeout(syncSupporter, 5000);
 
   // ── 内联屏蔽：在当前推文详情页直接屏蔽（twitter-helper 方案）──
 

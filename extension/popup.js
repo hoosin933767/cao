@@ -2,6 +2,7 @@
   const hideAdCheckbox = document.getElementById("hideAdCheckbox");
   const autoBlockCheckbox = document.getElementById("autoBlockCheckbox");
   const reportBtn = document.getElementById("reportBtn");
+  const supportersBtn = document.getElementById("supportersBtn");
 
   let currentTabId = null;
 
@@ -63,6 +64,12 @@
   reportBtn.addEventListener("click", () => {
     const runtime = globalThis.chrome?.runtime || globalThis.browser?.runtime;
     const url = runtime?.getURL ? runtime.getURL("block.html") : "";
+    if (url) chrome.tabs.create({ url });
+  });
+
+  supportersBtn.addEventListener("click", () => {
+    const runtime = globalThis.chrome?.runtime || globalThis.browser?.runtime;
+    const url = runtime?.getURL ? runtime.getURL("block.html?tab=supporters") : "";
     if (url) chrome.tabs.create({ url });
   });
 

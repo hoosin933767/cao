@@ -509,6 +509,78 @@
       document.querySelectorAll(".tab-content").forEach(function(c) { c.classList.remove("active"); });
       var target = document.getElementById("tab-" + tab);
       if (target) target.classList.add("active");
+
+      // 切换到支持者 tab 时加载列表
+      if (tab === "supporters") loadSupporters();
     });
+
+    // 如果 URL 有 ?tab=supporters 参数，自动切换到支持者 tab
+    var urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get("tab") === "supporters") {
+      var supportersTab = $tabNav.querySelector('[data-tab="supporters"]');
+      if (supportersTab) supportersTab.click();
+    }
+  }
+
+  // ── 支持者列表 ──
+
+  const CAO_API_BASE_URL = "https://vercel-api-hazel-gamma.vercel.app";
+
+  const $supporterList = document.getElementById("supporterList");
+  const $supporterCount = document.getElementById("supporterCount");
+
+  function formatSupporterTime(ts) {
+    if (!ts) return "—";
+    var d = new Date(ts);
+    var y = d.getFullYear();
+    var m = ("0" + (d.getMonth() + 1)).slice(-2);
+    var day = ("0" + d.getDate()).slice(-2);
+    return y + "/" + m + "/" + day;
+  }
+
+  function getSupporterDuration(firstSeen, lastSeen) {
+    if (!firstSeen || !lastSeen) return "—";
+    var days = Math.round((lastSeen - firstSeen) / 86400000);
+    if (days === 0) return "首次使用";
+    return days + " 天";
+  }
+
+  async function loadSupporters() {
+    try {
+      $supporterList.innerHTML = '<div class="kw-empty">加载中…</div>';
+      var resp = await fetch(CAO_API_BASE_URL + "/api/supporter?t=list");
+      var data = await resp.json();
+      if (!data.ok) { $supporterList.innerHTML = '<div class="kw-empty">加载失败</div>'; return; }
+
+      var supporters = data.supporters || [];
+      $supporterCount.textContent = "(" + (data.total || 0) + ")";
+
+      if (!supporters.length) {
+        $supporterList.innerHTML = '<div class="kw-empty">暂无支持者</div>';
+        return;
+      }
+
+      $supporterList.innerHTML = supporters.map(function(s) {
+        var safeHandle = h(s.handle);
+        var safeName = h(s.name || s.handle);
+        return '<div class="supporter-item">' +
+          '<div class="supporter-info">' +
+            '<span class="supporter-name">' + safeName + '</span>' +
+            '<span class="supporter-handle">@' + safeHandle + '</span>' +
+          '</div>' +
+          '<div class="supporter-meta">' +
+            '<span class="supporter-first">📅 ' + formatSupporterTime(s.firstSeen) + '</span>' +
+            '<span class="supporter-duration">' + getSupporterDuration(s.firstSeen, s.lastSeen) + '</span>' +
+          '</div>' +
+        '</div>';
+      }).join("");
+    } catch (e) {
+      $supporterList.innerHTML = '<div class="kw-empty">加载失败: ' + h(e.message || "") + '</div>';
+    }
+  }
+
+  // 页面加载后自动加载支持者数据（用于 tab 已激活的情况）
+  if (document.getElementById("tab-supporters").classList.contains("active")) {
+    loadSupporters();
   }
 })();

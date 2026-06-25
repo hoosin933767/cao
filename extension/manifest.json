@@ -13,7 +13,8 @@
     "https://x.com/*",
     "https://twitter.com/*",
     "https://www.x.com/*",
-    "https://www.twitter.com/*"
+    "https://www.twitter.com/*",
+    "https://vercel-api-hazel-gamma.vercel.app/*"
   ],
   "icons": {
     "16": "icons/icon16.png",
