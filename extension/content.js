@@ -912,31 +912,21 @@
 
   async function syncSupporter() {
     try {
-      // 使用 waitForMyHandle() 轮询获取 handle（最多等 8 秒，500ms 轮询）
       var handle = await waitForMyHandle();
-      if (!handle) {
-        // 轮询 8 秒后还是没拿到，30 秒后重试
-        setTimeout(syncSupporter, 30000);
-        return;
-      }
+      if (!handle) return;
       const data = await chrome.storage.local.get(SUPPORTER_SYNC_KEY);
       const lastSync = data[SUPPORTER_SYNC_KEY] || 0;
-      // 每天最多同步一次
       if (Date.now() - lastSync < 86400000) return;
-      var displayName = handle;
       await fetch(CAO_API_BASE_URL + "/api/supporter", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ handle: handle, name: displayName }),
+        body: JSON.stringify({ handle: handle, name: handle }),
       });
       await chrome.storage.local.set({ [SUPPORTER_SYNC_KEY]: Date.now() });
-    } catch (e) {
-      // 静默失败，不影响用户使用
-    }
+    } catch (e) {}
   }
 
-  // 延迟执行，确保 waitForMyHandle 能正常工作
-  setTimeout(syncSupporter, 1000);
+  setTimeout(syncSupporter, 3000);
 
   // ── 内联屏蔽：在当前推文详情页直接屏蔽（twitter-helper 方案）──
 
@@ -1049,7 +1039,9 @@
   function getMyHandle() {
     if (!currentUserHandle) {
       try {
-        const link = document.querySelector('a[data-testid="AppTabBar-Profile"]');
+        // 试多个选择器：新版 X 和旧版 X
+        const link = document.querySelector('a[data-testid="AppTabBar_Profile_Link"]')
+                  || document.querySelector('a[data-testid="AppTabBar-Profile"]');
         if (link) {
           const href = link.getAttribute("href") || "";
           if (href && href !== "/") {
@@ -1057,6 +1049,22 @@
           }
         }
       } catch (e) {}
+      // 兜底：从侧边栏用户菜单获取（x.com 首页左下角）
+      if (!currentUserHandle) {
+        try {
+          const userCell = document.querySelector('[data-testid="SideNav_AccountSwitcher_Button"]');
+          if (userCell) {
+            const links = userCell.querySelectorAll('a[href*="/"]');
+            for (const a of links) {
+              const h = (a.getAttribute("href") || "").replace(/^\//, "").toLowerCase();
+              if (h && !h.includes("settings") && h.length > 1) {
+                currentUserHandle = h;
+                break;
+              }
+            }
+          }
+        } catch (e) {}
+      }
     }
     return currentUserHandle || "";
   }
