@@ -12,21 +12,26 @@ const KV_URL = process.env.KV_REST_API_URL;
 const KV_TOKEN = process.env.KV_REST_API_TOKEN;
 
 async function kv(method, ...args) {
-  // 删除 URL 末尾的 /
-  const baseUrl = KV_URL ? KV_URL.replace(/\/+$/, "") : "";
-  const resp = await fetch(baseUrl, {
+  if (!KV_URL || !KV_TOKEN) return { error: true, text: "missing KV config" };
+  // Upstash REST API 使用 JSON 数组格式：["SET", "key", "value"]
+  const resp = await fetch(KV_URL, {
     method: "POST",
     headers: {
       Authorization: "Bearer " + KV_TOKEN,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ command: method, args }),
+    body: JSON.stringify([method].concat(args)),
   });
   if (!resp.ok) {
     const errText = await resp.text();
-    return { error: true, status: resp.status, text: errText.slice(0, 200) };
+    return { error: true, status: resp.status, text: errText.slice(0, 500) };
   }
-  return resp.json();
+  const text = await resp.text();
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    return { result: text };
+  }
 }
 
 export default async function handler(req, res) {
