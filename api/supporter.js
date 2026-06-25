@@ -12,19 +12,24 @@ const KV_URL = process.env.KV_REST_API_URL;
 const KV_TOKEN = process.env.KV_REST_API_TOKEN;
 
 async function kv(method, ...args) {
-  const resp = await fetch(KV_URL, {
+  // 删除 URL 末尾的 /
+  const baseUrl = KV_URL ? KV_URL.replace(/\/+$/, "") : "";
+  const resp = await fetch(baseUrl, {
     method: "POST",
     headers: {
-      Authorization: "Basic " + Buffer.from(":" + KV_TOKEN).toString("base64"),
+      Authorization: "Bearer " + KV_TOKEN,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ command: method, args }),
   });
+  if (!resp.ok) {
+    const errText = await resp.text();
+    return { error: true, status: resp.status, text: errText.slice(0, 200) };
+  }
   return resp.json();
 }
 
 export default async function handler(req, res) {
-  // CORS
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
@@ -37,10 +42,12 @@ export default async function handler(req, res) {
     if (handle.length > 30) return res.json({ ok: false, error: "handle too long" });
 
     const normalizedHandle = handle.toLowerCase().replace(/^@/, "");
-
-    // 读取已有记录
-    const existing = await kv("GET", "supporter:" + normalizedHandle);
     const now = Date.now();
+
+    const existing = await kv("GET", "supporter:" + normalizedHandle);
+    if (existing && existing.error) {
+      return res.json({ ok: false, error: "kv error: " + (existing.text || JSON.stringify(existing)) });
+    }
 
     let supporter;
     if (existing && existing.result) {
@@ -60,9 +67,15 @@ export default async function handler(req, res) {
       };
     }
 
-    // 写入
-    await kv("SET", "supporter:" + normalizedHandle, JSON.stringify(supporter));
-    await kv("ZADD", "supporters", supporter.firstSeen, normalizedHandle);
+    const setResult = await kv("SET", "supporter:" + normalizedHandle, JSON.stringify(supporter));
+    if (setResult && setResult.error) {
+      return res.json({ ok: false, error: "kv set error: " + (setResult.text || JSON.stringify(setResult)) });
+    }
+
+    const zaddResult = await kv("ZADD", "supporters", supporter.firstSeen, normalizedHandle);
+    if (zaddResult && zaddResult.error) {
+      return res.json({ ok: false, error: "kv zadd error: " + (zaddResult.text || JSON.stringify(zaddResult)) });
+    }
 
     return res.json({ ok: true });
   }
@@ -72,12 +85,23 @@ export default async function handler(req, res) {
 
     if (type === "stats") {
       const count = await kv("ZCARD", "supporters");
-      return res.json({ ok: true, total: count.result || 0 });
+      if (count && count.error) {
+        return res.json({ ok: false, error: "kv error: " + (count.text || JSON.stringify(count)) });
+      }
+      return res.json({ ok: true, total: count.result || 0, raw: count });
     }
 
-    // 列表
     const countResp = await kv("ZCARD", "supporters");
     const handlesResp = await kv("ZREVRANGE", "supporters", 0, 199);
+
+    if ((countResp && countResp.error) || (handlesResp && handlesResp.error)) {
+      return res.json({
+        ok: true,
+        supporters: [],
+        total: 0,
+        debug: { count: countResp, handles: handlesResp },
+      });
+    }
 
     const supporters = [];
     if (handlesResp && handlesResp.result) {
