@@ -1080,16 +1080,12 @@
             if (r.isScam) { featureResult = r; }
           }
 
-          // 3. 转发数量检测：评论有大量转发是典型的垃圾互刷特征
+          // 3. 转发数量检测：仅在有其他特征命中时加权，不做独立判定
           var shareCount = getArticleShareCount(article);
-          if (shareCount > 0) {
-            if (featureResult) {
+          if (shareCount > 0 && featureResult) {
               featureResult.score += 2;
               featureResult.features.push({ k: "\u8f6c\u53d1\u91cf", v: shareCount + "", p: 2 });
               if (featureResult.score >= 3) featureResult.isScam = true;
-            } else {
-              featureResult = { isScam: shareCount >= 5, score: shareCount >= 5 ? 4 : 0, features: [{ k: "\u8f6c\u53d1\u91cf", v: shareCount + "", p: shareCount >= 5 ? 4 : 0 }], matchedKeyword: null, matchedRedirect: null };
-            }
           }
 
           if (featureResult) {
