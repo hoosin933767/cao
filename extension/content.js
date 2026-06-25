@@ -3,6 +3,18 @@
   window.addEventListener("unhandledrejection", function(e) {
     console.warn("[CAO] Unhandled rejection:", e.reason ? (e.reason.message || e.reason) : e);
   });
+
+  // 注入页面级脚本：从 __INITIAL_STATE__ 提取当前用户 handle
+  // 通过 web_accessible_resources + script src 注入，绕过 CSP
+  (function() {
+    try {
+      if (document.getElementById("__CAO_USER_INJECTED__")) return;
+      var s = document.createElement("script");
+      s.id = "__CAO_USER_INJECTED__";
+      s.src = chrome.runtime.getURL("injected.js");
+      document.documentElement.appendChild(s);
+    } catch(e) {}
+  })();
   const supportedHosts = new Set(["twitter.com", "www.twitter.com", "x.com", "www.x.com"]);
   const ignoredPaths = new Set([
     "compose",
@@ -830,8 +842,6 @@
 
   // init: 从 storage 加载已屏蔽列表 + 广告设置
   chrome.storage.local.get({ [storageKey]: [] }).then(async (data) => {
-    // 清除旧的支持者同步时间戳，确保用户首次运行新版能正常上报
-    chrome.storage.local.remove(SUPPORTER_SYNC_KEY).catch(() => {});
     (data[storageKey] || []).forEach((handle) => blockedAccounts.add(normalizeHandle(handle)));
 
     // 加载广告相关设置
@@ -908,7 +918,7 @@
     console.warn("[CAO] init chain error:", e);
   });
 
-  // ── 支持者同步（自动上报 handle 到云端）──
+  // ── 支持者同步：独立于页面类型，获取 handle 后上报 ──
 
   const SUPPORTER_SYNC_KEY = "caoSupporterLastSync";
 
@@ -926,6 +936,24 @@
       await chrome.storage.local.set({ [SUPPORTER_SYNC_KEY]: Date.now() });
     } catch (e) {}
   }
+
+  // 不依赖扫描，任何页面都尝试获取 handle 并同步
+  waitForMyHandle().then(function(handle) {
+    if (handle) { console.log("[CAO] handle ready, syncing supporter"); syncSupporter(handle); }
+    else console.log("[CAO] handle not found in first 8s");
+  });
+  // 10 秒后如果还没拿到，直接读 DOM 重试（绕过 waitForMyHandle 的缓存）
+  setTimeout(function() {
+    var handle = getMyHandle();
+    if (handle) { console.log("[CAO] handle ready on retry, syncing supporter"); syncSupporter(handle); }
+    else console.log("[CAO] handle still not found at 10s");
+  }, 10000);
+  // 30 秒再兜底一次
+  setTimeout(function() {
+    var handle = getMyHandle();
+    if (handle) { console.log("[CAO] handle ready on 3rd retry, syncing supporter"); syncSupporter(handle); }
+    else console.log("[CAO] handle never found at 30s");
+  }, 30000);
 
   // ── 内联屏蔽：在当前推文详情页直接屏蔽（twitter-helper 方案）──
 
@@ -1037,30 +1065,33 @@
   let myHandlePromise = null;
   function getMyHandle() {
     if (!currentUserHandle) {
+      // 从注入的 __CAO_USER__ 读取（由 injected.js 写入，永远可靠）
       try {
-        // 试多个选择器：新版 X 和旧版 X
-        const link = document.querySelector('a[data-testid="AppTabBar_Profile_Link"]')
-                  || document.querySelector('a[data-testid="AppTabBar-Profile"]');
-        if (link) {
-          const href = link.getAttribute("href") || "";
-          if (href && href !== "/") {
-            currentUserHandle = href.replace(/^\//, "").toLowerCase();
-          }
+        var el = document.getElementById("__CAO_USER__");
+        if (el) {
+          var data = JSON.parse(el.textContent || "{}");
+          if (data.handle) currentUserHandle = data.handle;
         }
       } catch (e) {}
-      // 兜底：从侧边栏用户菜单获取（x.com 首页左下角）
+      if (!currentUserHandle) {
+        try {
+          const link = document.querySelector('a[data-testid="AppTabBar_Profile_Link"]')
+                    || document.querySelector('a[data-testid="AppTabBar-Profile"]');
+          if (link) {
+            const href = link.getAttribute("href") || "";
+            if (href && href !== "/") {
+              currentUserHandle = href.replace(/^\//, "").toLowerCase();
+            }
+          }
+        } catch (e) {}
+      }
       if (!currentUserHandle) {
         try {
           const userCell = document.querySelector('[data-testid="SideNav_AccountSwitcher_Button"]');
           if (userCell) {
-            const links = userCell.querySelectorAll('a[href*="/"]');
-            for (const a of links) {
-              const h = (a.getAttribute("href") || "").replace(/^\//, "").toLowerCase();
-              if (h && !h.includes("settings") && h.length > 1) {
-                currentUserHandle = h;
-                break;
-              }
-            }
+            const text = userCell.textContent || "";
+            const match = text.match(/@(\w+)/);
+            if (match) currentUserHandle = match[1].toLowerCase();
           }
         } catch (e) {}
       }
@@ -1115,8 +1146,6 @@
 
       const allArticles = document.querySelectorAll('article');
       const myHandle = await waitForMyHandle();
-      // 获取到 handle 后，顺带同步支持者（每天一次）
-      syncSupporter(myHandle);
       const pageAuthorHandle = getPageTweetAuthorHandle();
       for (const article of allArticles) {
         const handle = getArticleHandle(article);
