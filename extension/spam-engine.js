@@ -151,9 +151,10 @@
     }
     if (run.length >= 2) runs.push(run);
     // 中文混排 + 多处短字母数字段 → 关键词堆砌（如"30+的ak体制内老师"）
+    // 纯数字段（如"1285万"）不算，中文里数字是正常表达
     var hasCJK = /[\u4e00-\u9fff]/.test(text);
     if (runs.length >= 2 && hasCJK) {
-      var hasShortRun = runs.some(function(r) { return r.length <= 3; });
+      var hasShortRun = runs.some(function(r) { return r.length <= 3 && !/^\d+$/.test(r); });
       if (hasShortRun) return true;
     }
     // 多个字母段 → 所有段都含元音（含y）则为正常英文，不算杂乱
