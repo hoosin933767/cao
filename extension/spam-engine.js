@@ -3,7 +3,7 @@
   var ADULT_STRONG = ["约炮","炮友","yp","裸聊","色情","打飞机","破处","处男","约P","约啪","固炮","寻炮","看片"];
   var ADULT_WEAK = ["骚","处女","涩","上门","空降","同城","少妇","同城约","约爱","成人内容","无偿","交友","反差","返差"];
   var ADULT_PROMO = ["线下资源","线下约","线更新","同步更新","真实可靠"];
-  var REDIRECT_SIGNALS = ["看简介","点简介","点我头像","点主页","点我主页","看主页","简介有","点击主页","戳主页","个人主页","看个人主页","看置顶","置顶推文","置顶有","主页有"];
+  var REDIRECT_SIGNALS = ["看简介","点简介","点我头像","点主页","点我主页","看主页","简介有","点击主页","戳主页","个人主页","看个人主页","看置顶","置顶推文","置顶有","主页有","主页进群","主页私聊"];
   var PINYIN_SIGNALS = [{ pattern: /\bsao\b/i, keyword: "骚", pts: 2 }];
   var CUSTOM_KEYWORDS = { adultStrong: [], adultWeak: [], promo: [], redirect: [] };
   var CUSTOM_KW_LOADED = false;
@@ -294,7 +294,7 @@
     return false;
   }
 
-  /** 检查显示名：高置信度特征（成人强词 + 引流信号） */
+  /** 检查显示名：高置信度特征（成人强词 + 成人推广词 + 引流信号） */
   function detectDisplayName(text) {
     if (!text) return null;
     var normCJK = extractCJK(text);
@@ -307,12 +307,20 @@
           return { isScam: true, score: 2, features: [{ k: "成人关键词", v: allStrong[i], p: 2 }], matchedKeyword: allStrong[i], matchedRedirect: null };
         }
       }
-      // 成人弱词中的高置信词（上门/空降/少妇/同城约）
+      // 成人弱词中的高置信词
       var highConfWeak = ["上门","空降","少妇","同城约"];
       for (var i = 0; i < highConfWeak.length; i++) {
         var kwC = extractCJK(highConfWeak[i]);
         if (kwC.length && normCJK.join("").indexOf(kwC.join("")) !== -1) {
           return { isScam: true, score: 2, features: [{ k: "成人关键词", v: highConfWeak[i], p: 2 }], matchedKeyword: highConfWeak[i], matchedRedirect: null };
+        }
+      }
+      // 成人推广词（显示名中出现"真实可靠"等同属高置信特征）
+      var allPromo = ADULT_PROMO.concat(CUSTOM_KEYWORDS.promo || []);
+      for (var i = 0; i < allPromo.length; i++) {
+        var kwC = extractCJK(allPromo[i]);
+        if (kwC.length && normCJK.join("").indexOf(kwC.join("")) !== -1) {
+          return { isScam: true, score: 2, features: [{ k: "推广词", v: allPromo[i], p: 2 }], matchedKeyword: allPromo[i], matchedRedirect: null };
         }
       }
     }
