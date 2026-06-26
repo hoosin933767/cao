@@ -1123,28 +1123,12 @@
         try {
           const displayName = getArticleDisplayName(article);
 
-          // --- 特征检测 ---
+          // --- 综合维度评分 ---
 
           let featureResult = null;
-          if (replyText && replyText.length > 0) {
-            const r = window.SpamEngine.detectScam(replyText, handle, pageAuthorHandle);
-            if (r.isScam) { featureResult = r; }
-          }
-
-          if (!featureResult && displayName) {
-            // 显示名检查：成人强词 + 引流信号（高置信度特征）
-            var dnResult = window.SpamEngine.detectDisplayName(displayName);
-            if (dnResult) {
-              featureResult = dnResult;
-            }
-          }
-
-          // 3. 转发数量检测：仅在有其他特征命中时加权，且需要≥3次转发
-          var shareCount = getArticleShareCount(article);
-          if (shareCount >= 3 && featureResult) {
-              featureResult.score += 1;
-              featureResult.features.push({ k: "\u8f6c\u53d1\u91cf", v: shareCount + "", p: 1 });
-              if (featureResult.score >= 3) featureResult.isScam = true;
+          const accountResult = window.SpamEngine.detectAccount(displayName, replyText, handle);
+          if (accountResult.isScam) {
+            featureResult = accountResult;
           }
 
           if (featureResult) {
@@ -1213,7 +1197,7 @@
 
     let featureLabel = null;
     if (featureResult) {
-      const txt = featureResult.matchedKeyword || featureResult.matchedRedirect || featureResult.features[0]?.v || "";
+      const txt = featureResult.features?.[0]?.v || featureResult.features?.[0]?.k || "";
       featureLabel = `🔑 ${txt.length > 16 ? txt.slice(0, 16) + "…" : txt}`;
     }
 

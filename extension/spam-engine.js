@@ -141,40 +141,40 @@
     for (var i = first; i <= last; i++) { if (!/[\u4e00-\u9fff]/.test(text[i])) nonCjk++; }
     return nonCjk / (last - first + 1);
   }
-  function isChaoticText(text) {
-    var urlCount = (text.match(/https?:\/\/[^\s]+/g) || []).length + (text.match(/(?:^|\s)(x\.com|twitter\.com)\/[^\s]+/g) || []).length;
-    if (urlCount >= 1) return false;
-    var runs = [], run = "";
-    for (var i = 0; i < text.length; i++) {
-      if (/[a-zA-Z0-9]/.test(text[i])) { run += text[i]; }
-      else { if (run.length >= 2) runs.push(run); run = ""; }
-    }
-    if (run.length >= 2) runs.push(run);
-    // 中文混排 + 多处短字母数字段 → 关键词堆砌（如"30+的ak体制内老师"）
-    // 纯数字段（如"1285万"）不算，中文里数字是正常表达
-    var hasCJK = /[\u4e00-\u9fff]/.test(text);
-    if (runs.length >= 2 && hasCJK) {
-      var hasShortRun = runs.some(function(r) { return r.length <= 3 && !/^\d+$/.test(r); });
-      if (hasShortRun) return true;
-    }
-    // 多个字母段 → 所有段都含元音（含y）则为正常英文，不算杂乱
-    if (runs.length >= 2) {
-      var hasGibberish = runs.some(function(r) { return r.length >= 4 && !/[aeiouyAEIOUY]/.test(r); });
-      if (!hasGibberish) return false;
-    }
-    // 单个字母段 ≥5 且全部辅音（无元音，含y），说明是无意义键盘敲击
-    if (runs.length === 1 && runs[0].length >= 5 && !/[aeiouyAEIOUY]/.test(runs[0])) return true;
-    var positions = [], re = /[\uD800-\uDBFF][\uDC00-\uDFFF]|[\u2600-\u27FF]|[\uFE00-\uFE0F]/g, match;
-    while ((match = re.exec(text)) !== null) { positions.push(match.index); }
-    // 字母+emoji混合 → 需要至少2个emoji才认为可疑（单个emoji太常见）
-    if (runs.length >= 1 && positions.length >= 2) return true;
-    if (positions.length > 0) {
-      var left = text.slice(0, positions[0]).replace(/[\s,，。、！？!?]/g, "");
-      var right = text.slice(positions[0] + 2).replace(/[\s,，。、！？!?]/g, "");
-      if (/[\u4e00-\u9fff]/.test(left) && /[\u4e00-\u9fff]/.test(right)) return true;
+  /** 装饰 emoji（垃圾号常用的装饰符号） */
+  var DECORATIVE_EMOJI = /[\u{1F338}\u{1F33A}\u{1F33B}\u{1F339}\u{1F340}\u{1F341}\u{1F342}\u{1F343}\u{1F308}\u{1F381}\u{1F380}\u{1F48B}\u{1F495}\u{1F497}\u{1F498}\u{1F499}\u{1F49A}\u{1F49B}\u{1F49C}\u{1F49D}\u{1F49E}\u{1F49F}\u{2728}\u{2B50}\u{1F31F}\u{1F4A5}\u{1F525}\u{1F389}\u{1F38A}\u{1F38C}\u{1F3C6}\u{1F451}\u{1F484}\u{26A1}\u{2764}\u{1F9E1}\u{1F49B}\u{1F49A}\u{1F499}\u{1F49C}\u{1F5A4}]/u;
+
+  /** 检测是否含装饰 emoji */
+  function hasDecorativeEmoji(text) {
+    if (!text) return false;
+    return DECORATIVE_EMOJI.test(text);
+  }
+
+  /** 检测文本是否只有 emoji（不含字母数字汉字） */
+  function isPureEmojiText(t) {
+    if (!t) return false;
+    var stripped = t.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]|[\u2600-\u27FF]|[\uFE00-\uFE0F]|[\u{1F000}-\u{1FFFF}]/gu, "").replace(/\s+/g, "").trim();
+    return stripped.length === 0;
+  }
+
+  /** 检测回复是否无实质内容：纯 emoji 或纯英文凑数 */
+  function isMeaninglessReply(text) {
+    if (!text || text.length === 0) return true;
+    // 纯 emoji
+    var stripped = text.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]|[\u2600-\u27FF]|[\uFE00-\uFE0F]|[\u{1F000}-\u{1FFFF}]/gu, "").replace(/\s+/g, "").trim();
+    if (stripped.length === 0) return true;
+    // 纯英文 + emoji（无中文），长度很短且内容凑数
+    if (!/[\u4e00-\u9fff]/.test(text)) {
+      var words = text.replace(/[^a-zA-Z]+/g, " ").trim().split(/\s+/);
+      // 只有 1-3 个常见单词 + emoji → 凑数回复
+      if (words.length <= 3 && words.every(function(w) { return w.length <= 12; })) {
+        return true;
+      }
     }
     return false;
   }
+
+  /** 检测 handle 是否为随机生成 */
   function isHandleRandom(handle) {
     var letters = (handle || "").replace(/[^a-zA-Z]/g, "");
     if (letters.length <= 6) return false;
@@ -186,149 +186,120 @@
     }
     return false;
   }
-  function detectScam(text, handle, pageAuthor) {
-    if (!text && !handle) return { isScam: false, score: 0, features: [], matchedKeyword: null, matchedRedirect: null };
-    var score = 0, features = [], matchedKeyword = null, matchedRedirect = null;
-    if (text && typeof text === "string" && text.length > 0) {
-      var normalized = normalizeText(text);
-      if (!matchedKeyword) {
-        for (var pi = 0; pi < PINYIN_SIGNALS.length; pi++) {
-          var ps = PINYIN_SIGNALS[pi];
-          if (ps.pattern.test(normalized)) {
-            matchedKeyword = ps.keyword; score += ps.pts;
-            features.push({ k: "\u62fc\u97f3/\u53d8\u4f53", v: ps.keyword, p: ps.pts });
+
+  /** 综合维度评分：检查显示名 + 回复 + handle 多维信号 */
+  function detectAccount(displayName, replyText, handle) {
+    var dims = { displayName: 0, reply: 0, handle: 0, cross: 0 };
+    var reasons = [];
+
+    // ── Dim1: 显示名 (max -4) ──
+    (function() {
+      var dn = displayName || "";
+      var cjk = extractCJK(dn);
+      if (cjk.length > 0) {
+        var cjkStr = cjk.join("");
+        // 成人强词 → 立即判 spam（高置信）
+        var allStrong = ADULT_STRONG.concat(CUSTOM_KEYWORDS.adultStrong || []);
+        for (var i = 0; i < allStrong.length; i++) {
+          var kwc = extractCJK(allStrong[i]).join("");
+          if (kwc && cjkStr.indexOf(kwc) !== -1) {
+            dims.displayName = -4;
+            reasons.push({ k: "显示名-成人强词", v: allStrong[i], p: -4 });
+            return;
+          }
+        }
+        // 推广词
+        var allPromo = ADULT_PROMO.concat(CUSTOM_KEYWORDS.promo || []);
+        for (var i = 0; i < allPromo.length; i++) {
+          var kwc = extractCJK(allPromo[i]).join("");
+          if (kwc && cjkStr.indexOf(kwc) !== -1) {
+            dims.displayName = Math.min(dims.displayName - 3, -4);
+            reasons.push({ k: "显示名-推广词", v: allPromo[i], p: -3 });
+            break;
+          }
+        }
+        // 高置信弱词（上门/空降/少妇/同城约）
+        var highConfWeak = ["上门","空降","少妇","同城约"];
+        for (var i = 0; i < highConfWeak.length; i++) {
+          var kwc = extractCJK(highConfWeak[i]).join("");
+          if (kwc && cjkStr.indexOf(kwc) !== -1) {
+            dims.displayName = Math.min(dims.displayName - 3, -4);
+            reasons.push({ k: "显示名-成人弱词", v: highConfWeak[i], p: -3 });
             break;
           }
         }
       }
-      var normCJK = extractCJK(normalized);
-      if (normCJK.length > 0) {
-        function tryMatch(kw, pts) {
-          if (consecutiveMatch(kw, normCJK)) {
-            matchedKeyword = kw; score += pts;
-            features.push({ k: "\u6210\u4eba\u5173\u952e\u8bcd", v: kw, p: pts });
-            var mr = calcMixedRate(text, kw, normCJK);
-            if (mr > 0) { score += 2; features.push({ k: "\u95f4\u6742\u7387", v: (mr * 100).toFixed(0) + "%", p: 2 }); }
-            return true;
-          }
-          return false;
-        }
-        var allStrong = ADULT_STRONG.concat(CUSTOM_KEYWORDS.adultStrong || []);
-        for (var i = 0; i < allStrong.length; i++) { if (tryMatch(allStrong[i], 2)) break; }
-        if (!matchedKeyword) {
-          var allWeak = ADULT_WEAK.concat(CUSTOM_KEYWORDS.adultWeak || []);
-          for (var i = 0; i < allWeak.length; i++) { if (tryMatch(allWeak[i], 2)) break; }
-        }
-        if (!matchedKeyword) {
-          var allPromo = ADULT_PROMO.concat(CUSTOM_KEYWORDS.promo || []);
-          for (var i = 0; i < allPromo.length; i++) { if (tryMatch(allPromo[i], 2)) break; }
-        }
-        if (!matchedKeyword) {
-          var EMOJI_DISPLACED = [{ emoji: "\u2708", words: ["打","飞机"], kw: "打飞机", pts: 2 }];
-          for (var di = 0; di < EMOJI_DISPLACED.length; di++) {
-            var entry = EMOJI_DISPLACED[di];
-            if (text.indexOf(entry.emoji) !== -1 && looseKeywordMatch(entry.words, normalized)) {
-              matchedKeyword = entry.kw; score += entry.pts;
-              features.push({ k: "\u6210\u4eba\u5173\u952e\u8bcd", v: entry.kw, p: entry.pts });
-              break;
-            }
-          }
-        }
+      // 装饰 emoji
+      if (hasDecorativeEmoji(dn)) {
+        dims.displayName = Math.min(dims.displayName - 2, -4);
+        reasons.push({ k: "显示名-装饰emoji", v: "", p: -2 });
       }
+      // 引流信号（显示名中出现"主页进群"等）
       var allRedirect = REDIRECT_SIGNALS.concat(CUSTOM_KEYWORDS.redirect || []);
       for (var i = 0; i < allRedirect.length; i++) {
-        var sig = allRedirect[i];
-        if (text.indexOf(sig) !== -1) {
-          matchedRedirect = sig;
-          if (score < 3) score += 1;
-          features.push({ k: "\u5f15\u6d41\u4fe1\u53f7", v: sig, p: 1 });
+        if (dn.indexOf(allRedirect[i]) !== -1) {
+          dims.displayName = Math.min(dims.displayName - 3, -4);
+          reasons.push({ k: "显示名-引流", v: allRedirect[i], p: -3 });
           break;
         }
       }
-      if (isChaoticText(text)) { score += 1; features.push({ k: "\u5185\u5bb9\u6742\u4e71", v: "", p: 1 }); }
-      if (!matchedRedirect && pageAuthor && text.indexOf("@") !== -1) {
-        var atMatches = text.match(/@[A-Za-z0-9_]{1,15}/g) || [];
-        var thirdParty = null;
-        for (var ai = 0; ai < atMatches.length; ai++) {
-          var atHandle = atMatches[ai].slice(1).toLowerCase();
-          if (atHandle !== pageAuthor.toLowerCase() && atHandle !== (handle || "").toLowerCase()) {
-            thirdParty = atHandle;
+    })();
+
+    // ── Dim2: 回复文本 (max -3) ──
+    (function() {
+      var rt = replyText || "";
+      if (!rt || rt.length === 0) {
+        dims.reply = -1;
+        reasons.push({ k: "回复-空", v: "", p: -1 });
+      } else {
+        if (isPureEmojiText(rt)) {
+          dims.reply = Math.min(dims.reply - 2, -3);
+          reasons.push({ k: "回复-纯emoji", v: "", p: -2 });
+        } else if (isMeaninglessReply(rt)) {
+          dims.reply = Math.min(dims.reply - 1, -3);
+          reasons.push({ k: "回复-无实质内容", v: "", p: -1 });
+        }
+        // 引流信号
+        var allRedirect = REDIRECT_SIGNALS.concat(CUSTOM_KEYWORDS.redirect || []);
+        for (var i = 0; i < allRedirect.length; i++) {
+          if (rt.indexOf(allRedirect[i]) !== -1) {
+            dims.reply = Math.min(dims.reply - 2, -3);
+            reasons.push({ k: "回复-引流", v: allRedirect[i], p: -2 });
             break;
           }
         }
-        if (thirdParty) {
-          matchedRedirect = "@" + thirdParty;
-          if (score < 3) score += 1;
-          features.push({ k: "\u5f15\u6d41\u4fe1\u53f7", v: matchedRedirect, p: 1 });
+        // @第三方引流
+        if (rt.indexOf("@") !== -1) {
+          var atMatches = rt.match(/@[A-Za-z0-9_]{1,15}/g) || [];
+          if (atMatches.length > 0) {
+            dims.reply = Math.min(dims.reply - 1, -3);
+            reasons.push({ k: "回复-@引流", v: atMatches[0], p: -1 });
+          }
         }
       }
-      // 纯 emoji 回复/名字：无文字内容本身就是可疑信号
-      if (isPureEmojiText(text)) { score += 1; features.push({ k: "\u7eafemoji", v: "", p: 1 }); }
-      // 中文标点 → 仅在有其他特征命中时加权（不独立触发）
-      if (score > 0 && hasChinesePunct(text)) { score += 1; features.push({ k: "\u4e2d\u6587\u6807\u70b9", v: "", p: 1 }); }
-    }
-    if (handle && isHandleRandom(handle)) { score += 1; features.push({ k: "handle \u968f\u673a", v: handle, p: 1 }); }
-    return { isScam: score >= 3, score: score, features: features, matchedKeyword: matchedKeyword, matchedRedirect: matchedRedirect };
-  }
+    })();
 
-  /** 检测文本是否只有 emoji（不含字母数字汉字） */
-  function isPureEmojiText(t) {
-    if (!t) return false;
-    var stripped = t.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]|[\u2600-\u27FF]|[\uFE00-\uFE0F]|[\u{1F000}-\u{1FFFF}]/gu, "").replace(/\s+/g, "").trim();
-    return stripped.length === 0;
-  }
-
-  /** 检测文本是否含中文标点（逗号/括号等） */
-  function hasChinesePunct(t) {
-    if (!t) return false;
-    return /[\u3000-\u303f\uff00-\uffef]/.test(t);
-  }
-
-  /** 检查文本是否包含引流信号 */
-  function hasRedirectSignal(text) {
-    if (!text) return false;
-    var allRedirect = REDIRECT_SIGNALS.concat(CUSTOM_KEYWORDS.redirect || []);
-    for (var i = 0; i < allRedirect.length; i++) {
-      if (text.indexOf(allRedirect[i]) !== -1) return true;
+    // ── Dim3: Handle 随机 (max -2) ──
+    if (handle && isHandleRandom(handle)) {
+      dims.handle = -2;
+      reasons.push({ k: "handle随机", v: handle, p: -2 });
     }
-    return false;
-  }
 
-  /** 检查显示名：高置信度特征（成人强词 + 成人推广词 + 引流信号） */
-  function detectDisplayName(text) {
-    if (!text) return null;
-    var normCJK = extractCJK(text);
-    if (normCJK.length > 0) {
-      // 成人强词
-      var allStrong = ADULT_STRONG.concat(CUSTOM_KEYWORDS.adultStrong || []);
-      for (var i = 0; i < allStrong.length; i++) {
-        var kwC = extractCJK(allStrong[i]);
-        if (kwC.length && normCJK.join("").indexOf(kwC.join("")) !== -1) {
-          return { isScam: true, score: 2, features: [{ k: "成人关键词", v: allStrong[i], p: 2 }], matchedKeyword: allStrong[i], matchedRedirect: null };
-        }
-      }
-      // 成人弱词中的高置信词
-      var highConfWeak = ["上门","空降","少妇","同城约"];
-      for (var i = 0; i < highConfWeak.length; i++) {
-        var kwC = extractCJK(highConfWeak[i]);
-        if (kwC.length && normCJK.join("").indexOf(kwC.join("")) !== -1) {
-          return { isScam: true, score: 2, features: [{ k: "成人关键词", v: highConfWeak[i], p: 2 }], matchedKeyword: highConfWeak[i], matchedRedirect: null };
-        }
-      }
-      // 成人推广词（显示名中出现"真实可靠"等同属高置信特征）
-      var allPromo = ADULT_PROMO.concat(CUSTOM_KEYWORDS.promo || []);
-      for (var i = 0; i < allPromo.length; i++) {
-        var kwC = extractCJK(allPromo[i]);
-        if (kwC.length && normCJK.join("").indexOf(kwC.join("")) !== -1) {
-          return { isScam: true, score: 2, features: [{ k: "推广词", v: allPromo[i], p: 2 }], matchedKeyword: allPromo[i], matchedRedirect: null };
-        }
-      }
+    // ── 跨维度协同 (max -3) ──
+    if (dims.displayName < 0 && dims.reply < 0) {
+      // 显示名有信号 + 回复无意义 = 典型的垃圾号行为
+      dims.cross = Math.min(dims.cross - 3, -3);
+      reasons.push({ k: "跨维度-广告名+无意义回复", v: "", p: -3 });
+    } else if (dims.displayName < 0 && dims.handle < 0) {
+      dims.cross = Math.min(dims.cross - 2, -3);
+      reasons.push({ k: "跨维度-广告名+随机handle", v: "", p: -2 });
+    } else if (hasDecorativeEmoji(displayName || "") && isPureEmojiText(replyText || "")) {
+      dims.cross = Math.min(dims.cross - 2, -3);
+      reasons.push({ k: "跨维度-装饰名+纯emoji", v: "", p: -2 });
     }
-    // 引流信号
-    if (hasRedirectSignal(text)) {
-      return { isScam: true, score: 1, features: [{ k: "引流信号", v: text, p: 1 }], matchedKeyword: null, matchedRedirect: text };
-    }
-    return null;
+
+    var total = dims.displayName + dims.reply + dims.handle + dims.cross;
+    return { isScam: total <= -4, score: total, features: reasons };
   }
   var ready = false, readyCallbacks = [];
   async function init() {
@@ -341,6 +312,6 @@
     } catch (e) { console.error("[SpamEngine] init failed:", e); }
   }
   function onReady(cb) { if (ready) return cb(); readyCallbacks.push(cb); }
-  window.SpamEngine = { init: init, onReady: onReady, ready: function() { return ready; }, normalizeText: normalizeText, detectScam: detectScam, detectDisplayName: detectDisplayName, hasRedirectSignal: hasRedirectSignal, trainKeywords: trainKeywords, loadCustomKeywords: loadCustomKeywords, addCustomKeyword: addCustomKeyword, removeCustomKeyword: removeCustomKeyword, getCustomKeywords: getCustomKeywords };
+  window.SpamEngine = { init: init, onReady: onReady, ready: function() { return ready; }, normalizeText: normalizeText, detectAccount: detectAccount, isHandleRandom: isHandleRandom, trainKeywords: trainKeywords, loadCustomKeywords: loadCustomKeywords, addCustomKeyword: addCustomKeyword, removeCustomKeyword: removeCustomKeyword, getCustomKeywords: getCustomKeywords };
   init();
 })();
