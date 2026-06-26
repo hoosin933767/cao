@@ -2,7 +2,7 @@
   "use strict";
   var ADULT_STRONG = ["约炮","炮友","yp","裸聊","色情","打飞机","破处","处男","约P","约啪","固炮","寻炮","看片"];
   var ADULT_WEAK = ["骚","处女","涩","上门","空降","同城","少妇","同城约","约爱","成人内容","无偿","交友","反差","返差"];
-  var ADULT_PROMO = ["线下资源","线下约","线更新","同步更新","真实可靠","同城男大","无偿","同城约炮","附近"];
+  var ADULT_PROMO = ["线下资源","线下约","线更新","同步更新","真实可靠","同城男大","无偿","同城约炮","附近","探路","花样多","已探路","体制内","私聊"];
   var REDIRECT_SIGNALS = ["看简介","点简介","点我头像","点主页","点我主页","看主页","简介有","点击主页","戳主页","个人主页","看个人主页","看置顶","置顶推文","置顶有","主页有","主页进群","主页私聊"];
   var PINYIN_SIGNALS = [{ pattern: /\bsao\b/i, keyword: "骚", pts: 2 }];
   var CUSTOM_KEYWORDS = { adultStrong: [], adultWeak: [], promo: [], redirect: [] };
@@ -259,6 +259,19 @@
           dims.reply = Math.min(dims.reply - 1, -3);
           reasons.push({ k: "回复-无实质内容", v: "", p: -1 });
         }
+        // 回复文本中的中文推广/弱关键词 → 弱信号
+        if (/[\u4e00-\u9fff]/.test(rt)) {
+          var cjk = extractCJK(rt).join("");
+          var allPromo = ADULT_PROMO.concat(CUSTOM_KEYWORDS.promo || []);
+          for (var i = 0; i < allPromo.length; i++) {
+            var kwc = extractCJK(allPromo[i]).join("");
+            if (kwc && cjk.indexOf(kwc) !== -1) {
+              dims.reply = Math.min(dims.reply - 1, -3);
+              reasons.push({ k: "回复-中文推广词", v: allPromo[i], p: -1 });
+              break;
+            }
+          }
+        }
         // 引流信号
         var allRedirect = REDIRECT_SIGNALS.concat(CUSTOM_KEYWORDS.redirect || []);
         for (var i = 0; i < allRedirect.length; i++) {
@@ -268,12 +281,19 @@
             break;
           }
         }
-        // @第三方引流
+        // @第三方引流 + 检查 @ 的账号 handle 是否可疑
         if (rt.indexOf("@") !== -1) {
           var atMatches = rt.match(/@[A-Za-z0-9_]{1,15}/g) || [];
           if (atMatches.length > 0) {
-            dims.reply = Math.min(dims.reply - 1, -3);
-            reasons.push({ k: "回复-@引流", v: atMatches[0], p: -1 });
+            var atHandle = atMatches[0].slice(1);
+            // @ 的 handle 随机生成→成人号常见行为
+            if (isHandleRandom(atHandle)) {
+              dims.reply = Math.min(dims.reply - 2, -3);
+              reasons.push({ k: "回复-@引流(handle随机)", v: atHandle, p: -2 });
+            } else {
+              dims.reply = Math.min(dims.reply - 1, -3);
+              reasons.push({ k: "回复-@引流", v: atHandle, p: -1 });
+            }
           }
         }
       }
@@ -296,6 +316,10 @@
     } else if (hasDecorativeEmoji(displayName || "") && isPureEmojiText(replyText || "")) {
       dims.cross = Math.min(dims.cross - 2, -3);
       reasons.push({ k: "跨维度-装饰名+纯emoji", v: "", p: -2 });
+    } else if (dims.reply <= -2 && replyText && replyText.indexOf("@") !== -1) {
+      // 回复含中文推广词 + @引流 = 典型广告评论
+      dims.cross = Math.min(dims.cross - 2, -3);
+      reasons.push({ k: "跨维度-中文推广+@引流", v: "", p: -2 });
     }
 
     var total = dims.displayName + dims.reply + dims.handle + dims.cross;
