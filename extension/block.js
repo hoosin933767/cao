@@ -44,6 +44,7 @@
       var safeHandle = h(item.handle);
       var attrHandle = item.handle.replace(/"/g,"&quot;");
       var replyHtml = item.replyText ? '<span class="history-reply">' + h(item.replyText.substring(0, 80)) + '</span>' : '';
+      var tweetUrlHtml = item.tweetUrl ? ' · <a class="history-tweet-link" href="' + item.tweetUrl.replace(/"/g,"&quot;") + '" target="_blank">查看推文</a>' : '';
       return '<tr>' +
         '<td>' +
           '<a class="history-account" href="https://x.com/' + safeHandle + '" target="_blank">' +
@@ -54,6 +55,7 @@
               replyHtml +
             '</span>' +
           '</a>' +
+          tweetUrlHtml +
         '</td>' +
         '<td class="date-cell">' + formatBlockTime(item.blockedAt) + '</td>' +
         '<td><button type="button" class="unblock-btn" data-handle="' + attrHandle + '">解除屏蔽</button></td>' +

@@ -684,9 +684,10 @@
     if (retries === undefined) retries = 2;
     for (var attempt = 0; attempt <= retries; attempt++) {
       try {
+        var tweetUrl = window.location.href;
         const d = await chrome.storage.local.get(blockHistoryKey);
         let list = d[blockHistoryKey] || [];
-        list.unshift({ handle: handle.toLowerCase(), name: name || handle, avatar: avatar || "", replyText: replyText || "", blockedAt: Date.now() });
+        list.unshift({ handle: handle.toLowerCase(), name: name || handle, avatar: avatar || "", replyText: replyText || "", tweetUrl: tweetUrl, blockedAt: Date.now() });
         if (list.length > MAX_BLOCK_HISTORY) list = list.slice(0, MAX_BLOCK_HISTORY);
         await chrome.storage.local.set({ [blockHistoryKey]: list });
         triggerFloaterBreath();
