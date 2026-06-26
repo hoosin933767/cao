@@ -142,7 +142,7 @@
     return nonCjk / (last - first + 1);
   }
   /** 装饰 emoji（垃圾号常用的装饰符号） */
-  var DECORATIVE_EMOJI = /[\u{1F338}\u{1F33A}\u{1F33B}\u{1F339}\u{1F340}\u{1F341}\u{1F342}\u{1F343}\u{1F308}\u{1F381}\u{1F380}\u{1F48B}\u{1F495}\u{1F497}\u{1F498}\u{1F499}\u{1F49A}\u{1F49B}\u{1F49C}\u{1F49D}\u{1F49E}\u{1F49F}\u{2728}\u{2B50}\u{1F31F}\u{1F4A5}\u{1F525}\u{1F389}\u{1F38A}\u{1F38C}\u{1F3C6}\u{1F451}\u{1F484}\u{26A1}\u{2764}\u{1F9E1}\u{1F49B}\u{1F49A}\u{1F499}\u{1F49C}\u{1F5A4}]/u;
+  var DECORATIVE_EMOJI = /[\u{1F338}\u{1F33A}\u{1F33B}\u{1F339}\u{1F308}\u{1F381}\u{1F380}\u{1F48B}\u{1F525}\u{1F389}\u{1F38A}\u{1F38C}\u{1F3C6}\u{1F451}\u{1F484}\u{26A1}\u{1F5A4}]/u;
 
   /** 检测是否含装饰 emoji */
   function hasDecorativeEmoji(text) {
@@ -314,8 +314,9 @@
     }
 
     // ── 跨维度协同 (max -3) ──
-    if (dims.displayName < 0 && dims.reply < 0) {
-      // 显示名有信号 + 回复无意义 = 典型的垃圾号行为
+    if (dims.displayName <= -3 && dims.reply < 0) {
+      // 显示名有实质性信号（推广/引流/成人词）+ 回复有信号 = 典型的垃圾号行为
+      // 注意：仅装饰emoji(-2)不会触发此跨维
       dims.cross = Math.min(dims.cross - 3, -3);
       reasons.push({ k: "跨维度-广告名+无意义回复", v: "", p: -3 });
     } else if (dims.displayName < 0 && dims.handle < 0) {
