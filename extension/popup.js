@@ -43,6 +43,9 @@
     });
     autoBlockCheckbox.checked = settings.mv3AutoBlock !== false;
     hideAdCheckbox.checked = settings[HIDE_AD_KEY] !== false;
+
+    // Pop-up 打开时触发支持者同步（此时 X 页面 DOM 已就绪）
+    sendMessage("MV3_SYNC_SUPPORTER");
   }
 
   hideAdCheckbox.addEventListener("change", async () => {

@@ -4,7 +4,7 @@
     console.warn("[CAO] Unhandled rejection:", e.reason ? (e.reason.message || e.reason) : e);
   });
 
-  // 监听账号切换：X 切换用户后清除 handle 缓存
+  // 监听账号切换：X 切换用户后清除 handle 缓存，下次点插件图标时自动同步新账号
   var accountSwitchTimer = null;
   function watchAccountSwitch() {
     try {
@@ -14,8 +14,6 @@
         if (accountSwitchTimer) clearTimeout(accountSwitchTimer);
         accountSwitchTimer = setTimeout(function() {
           currentXHandle = "";
-          // 切换后重试同步
-          retryGetHandle(function(h) { if (h) syncSupporter(h); });
         }, 2000);
       });
       obs.observe(target, { childList: true, subtree: true, attributes: true, characterData: true });
@@ -99,6 +97,14 @@
           sendResponse({ ok: true });
         });
         return true;
+      }
+
+      // ── 支持者同步：Pop-up 打开时触发 ──
+      if (message.type === "MV3_SYNC_SUPPORTER") {
+        const handle = getMyHandle();
+        if (handle) syncSupporter(handle);
+        sendResponse({ ok: true, handle: handle || null });
+        return;
       }
 
       
@@ -944,11 +950,9 @@
     } catch (e) {}
   }
 
-  // 轮询获取 handle 并同步支持者（不依赖任何缓存，每次调用都重新读 DOM）
-  retryGetHandle(function(handle) {
-    if (handle) { console.log("[CAO] handle ready, syncing supporter"); syncSupporter(handle); }
-    else console.log("[CAO] handle not found after 15s");
-  });
+  // 支持者同步通过 popup 打开时触发（MV3_SYNC_SUPPORTER），不需自动轮询
+  // 但切换账号时仍需尝试
+  watchAccountSwitch();
 
   // ── 内联屏蔽：在当前推文详情页直接屏蔽（twitter-helper 方案）──
 
@@ -1080,18 +1084,6 @@
     var m = location.pathname.match(/^\/(\w+)\/status\//);
     return m ? m[1].toLowerCase() : null;
   }
-  /** 轮询获取 handle（最多 15 秒，500ms 间隔），每次调用都重新轮询 */
-  function retryGetHandle(callback, timeoutMs) {
-    timeoutMs = timeoutMs || 15000;
-    var interval = 500;
-    var elapsed = 0;
-    var timer = setInterval(function() {
-      var h = getMyHandle();
-      if (h) { clearInterval(timer); callback(h); return; }
-      elapsed += interval;
-      if (elapsed >= timeoutMs) { clearInterval(timer); callback(""); }
-    }, interval);
-  }
 
   // 加载自动屏蔽设置
   (async function() {
@@ -1115,10 +1107,8 @@
       }
 
       const allArticles = document.querySelectorAll('article');
-      // 获取当前用户 handle（promise 包装的轮询，不缓存）
-      const myHandle = await new Promise(function(resolve) {
-        retryGetHandle(function(h) { resolve(h); }, 8000);
-      });
+      // 当前用户 handle（直接读 DOM，不轮询）
+      const myHandle = getMyHandle();
       const pageAuthorHandle = getPageTweetAuthorHandle();
       for (const article of allArticles) {
         const handle = getArticleHandle(article);
