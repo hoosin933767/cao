@@ -1152,7 +1152,12 @@
           const accountResult = window.SpamEngine.detectAccount(displayName, replyText, handle, pageAuthorHandle);
           if (accountResult.isScam) {
             featureResult = accountResult;
-            featureResult.confirmed = !featureResult.needsBioCheck; // 不需要bio确认的（如成人强词）直接确认
+            featureResult.confirmed = false;
+
+            // 高置信（单维度命中成人强词等）→ 直接确认
+            if (!featureResult.needsBioCheck) {
+              featureResult.confirmed = true;
+            }
           }
 
           if (featureResult) {
@@ -1160,31 +1165,49 @@
             injectFeatureBadge(article, handle, featureResult);
             console.log("[CAO] SUSPECTED:", handle, "score:", featureResult.score, "features:", JSON.stringify(featureResult.features));
 
-            // 阶段2：需要资料介绍确认的维度疑似，fetch bio 验证
+            // 先隐藏回复（无论是否确认，疑似就隐藏）
+            hideArticle(article);
+            console.log("[CAO] hidden:", handle);
+
+            // 阶段2：资料介绍确认
             if (featureResult.needsBioCheck) {
+              var bioConfirmed = false;
               try {
+                // 查本人 bio
                 var bioText = await getProfileBio(handle);
                 if (bioText && window.SpamEngine.detectBio(bioText)) {
-                  console.log("[CAO] BIO confirmed:", handle, "bio:", bioText);
-                  featureResult.features.push({ k: "资料介绍确认", v: (bioText.length > 20 ? bioText.slice(0, 20) + "…" : bioText), p: -3 });
+                  console.log("[CAO] BIO confirmed (self):", handle, "bio:", bioText);
+                  featureResult.features.push({ k: "资料确认(本人)", v: (bioText.length > 20 ? bioText.slice(0, 20) + "…" : bioText), p: -3 });
                   featureResult.score -= 3;
-                  featureResult.confirmed = true;
-                } else {
-                  console.log("[CAO] BIO clean for", handle, "- suspected only, not confirmed");
+                  bioConfirmed = true;
+                }
+                // 如果有 @ 第三方，也查对方的 bio
+                if (!bioConfirmed && featureResult.mentionedHandle) {
+                  var mentionedBio = await getProfileBio(featureResult.mentionedHandle);
+                  if (mentionedBio && window.SpamEngine.detectBio(mentionedBio)) {
+                    console.log("[CAO] BIO confirmed (@'d):", featureResult.mentionedHandle, "bio:", mentionedBio);
+                    featureResult.features.push({ k: "资料确认(@)", v: featureResult.mentionedHandle, p: -3 });
+                    featureResult.score -= 3;
+                    bioConfirmed = true;
+                  }
                 }
               } catch (e) {
                 console.warn("[CAO] bio check failed for", handle, e);
               }
+
+              if (bioConfirmed) {
+                featureResult.confirmed = true;
+              } else {
+                console.log("[CAO] BIO clean for", handle, "- hidden only, not confirmed");
+              }
             }
 
-            // 记录检测结果（无论是否确认）
+            // 记录检测结果
             await saveBlockHistory(handle, displayName, getArticleAvatar(article), replyText);
-            // 只有确认过的才自动屏蔽
+            // 确认 → 自动屏蔽
             if (featureResult.confirmed) {
               console.log("[CAO] confirmed, now auto-blocking", handle);
               await autoBlockAndHide(article, handle);
-            } else {
-              console.log("[CAO] suspected only, not auto-blocking", handle);
             }
           }
         } catch (e) {
@@ -1194,6 +1217,30 @@
     } finally {
       vectorScanRunning = false;
     }
+  }
+
+  /** 隐藏某个回复（疑似但未确认时使用，添加垃圾隐藏类） */
+  function hideArticle(article) {
+    if (!article || article.classList.contains(garbageHiddenClass)) return;
+    article.classList.add(garbageHiddenClass);
+    // 在回复上打标签标记为"疑似"
+    try {
+      var badge = document.createElement("span");
+      badge.className = "mv3-feature-badge";
+      badge.textContent = "⚠ 疑似";
+      badge.style.cssText = [
+        "display:inline-block",
+        "font:600 10px/1.2 Arial,sans-serif",
+        "color:#6b7280",
+        "background:#f3f4f6",
+        "border:1px solid #e5e7eb",
+        "border-radius:3px",
+        "padding:1px 4px",
+        "margin-left:4px",
+      ].join(";");
+      var nameEl = article.querySelector('[data-testid="User-Name"]');
+      if (nameEl) nameEl.appendChild(badge);
+    } catch(e) {}
   }
 
   /** 自动屏蔽账号并隐藏回复 */

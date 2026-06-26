@@ -188,12 +188,14 @@
   }
 
   /** 综合维度评分：检查显示名 + 回复 + handle + pageAuthor 多维信号
-   *  返回 { isScam, score, features, bioCheck }
-   *  - bioCheck: 是否需要 profile bio 验证（当 isScam 且 @了第三方时）
+   *  返回 { isScam, score, features, bioCheck, mentionedHandle }
+   *  - needsBioCheck: 是否需要 profile bio 验证（当多个维度命中时）
+   *  - mentionedHandle: 回复中 @ 的第三方 handle（非原文作者、非白名单）
    */
   function detectAccount(displayName, replyText, handle, pageAuthor) {
     var dims = { displayName: 0, reply: 0, handle: 0, cross: 0 };
     var reasons = [];
+    var mentionedHandle = null;
     // 正常交互白名单：不会作为引流目标的账号
     var WHITELIST = ["grok","elonmusk","jack","x","twitter","communitynotes"];
 
@@ -296,6 +298,7 @@
             if (atHandle === (pageAuthor || "").toLowerCase() || WHITELIST.indexOf(atHandle) !== -1) {
               // 正常的 @，不扣分
             } else {
+              mentionedHandle = atHandle;
               dims.reply = Math.min(dims.reply - 1, -3);
               reasons.push({ k: "回复-@引流", v: atHandle, p: -1 });
             }
@@ -332,7 +335,7 @@
     // 多个维度命中时，需要 bio 确认
     var dimCount = [dims.displayName, dims.reply, dims.handle, dims.cross].filter(function(d) { return d < 0; }).length;
     var needsBioCheck = isSuspicious && dimCount >= 2;
-    return { isScam: isSuspicious, score: total, features: reasons, needsBioCheck: needsBioCheck };
+    return { isScam: isSuspicious, score: total, features: reasons, needsBioCheck: needsBioCheck, mentionedHandle: mentionedHandle };
   }
 
   /** 检测 profile bio 是否含成人推广信号（确认阶段使用） */
