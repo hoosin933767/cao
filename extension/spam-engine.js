@@ -333,9 +333,9 @@
 
     var total = dims.displayName + dims.reply + dims.handle + dims.cross;
     var isSuspicious = total <= -4;
-    // 多个维度命中时，需要 bio 确认
-    var dimCount = [dims.displayName, dims.reply, dims.handle, dims.cross].filter(function(d) { return d < 0; }).length;
-    var needsBioCheck = isSuspicious && dimCount >= 2;
+    // 仅显示名成人强词命中（-4）且其他维度无信号 → 高置信，跳过 bio 确认
+    // 其他所有情况都需要资料介绍确认
+    var needsBioCheck = isSuspicious && !(dims.displayName === -4 && dims.reply === 0 && dims.handle === 0 && dims.cross === 0);
     return { isScam: isSuspicious, score: total, features: reasons, needsBioCheck: needsBioCheck, mentionedHandle: mentionedHandle };
   }
 
