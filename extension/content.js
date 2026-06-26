@@ -1085,6 +1085,29 @@
     return m ? m[1].toLowerCase() : null;
   }
 
+  /** 获取某个账号的 profile bio（直接 fetch 个人主页，解析 meta description，更快更可靠） */
+  function getProfileBio(handle) {
+    return new Promise(function(resolve) {
+      if (!handle) { resolve(""); return; }
+      fetch("https://x.com/" + encodeURIComponent(handle), { credentials: "include" }).then(function(resp) {
+        if (!resp.ok) { resolve(""); return; }
+        // 只取前 8KB 就够（meta 在 head 里）
+        resp.text().then(function(html) {
+          // X 的 profile page meta description：'@"handle"'s profile - "bio text"'
+          var match = html.match(/<meta\s+name="description"\s+content="([^"]+)"/i);
+          if (match) {
+            var desc = match[1];
+            // X 会把 handle 和 's profile 加在前面，去掉
+            desc = desc.replace(/^@\w+'s\s+profile\s*[-–—]\s*/i, "");
+            resolve(desc);
+          } else {
+            resolve("");
+          }
+        });
+      }).catch(function() { resolve(""); });
+    });
+  }
+
   // 加载自动屏蔽设置
   (async function() {
     try {
@@ -1123,25 +1146,46 @@
         try {
           const displayName = getArticleDisplayName(article);
 
-          // --- 综合维度评分 ---
+          // --- 综合维度评分（阶段1：疑似） ---
 
           let featureResult = null;
           const accountResult = window.SpamEngine.detectAccount(displayName, replyText, handle, pageAuthorHandle);
           if (accountResult.isScam) {
             featureResult = accountResult;
+            featureResult.confirmed = !featureResult.needsBioCheck; // 不需要bio确认的（如成人强词）直接确认
           }
 
           if (featureResult) {
             article.classList.add("flagged-spam");
             injectFeatureBadge(article, handle, featureResult);
-            console.log("[CAO] DETECTED:", handle, "score:", featureResult.score, "features:", JSON.stringify(featureResult.features));
-            console.log("[CAO] reply text:", replyText);
-            console.log("[CAO] display name:", displayName);
-            // 记录检测结果（无论自动屏蔽是否开启）
+            console.log("[CAO] SUSPECTED:", handle, "score:", featureResult.score, "features:", JSON.stringify(featureResult.features));
+
+            // 阶段2：需要资料介绍确认的维度疑似，fetch bio 验证
+            if (featureResult.needsBioCheck) {
+              try {
+                var bioText = await getProfileBio(handle);
+                if (bioText && window.SpamEngine.detectBio(bioText)) {
+                  console.log("[CAO] BIO confirmed:", handle, "bio:", bioText);
+                  featureResult.features.push({ k: "资料介绍确认", v: (bioText.length > 20 ? bioText.slice(0, 20) + "…" : bioText), p: -3 });
+                  featureResult.score -= 3;
+                  featureResult.confirmed = true;
+                } else {
+                  console.log("[CAO] BIO clean for", handle, "- suspected only, not confirmed");
+                }
+              } catch (e) {
+                console.warn("[CAO] bio check failed for", handle, e);
+              }
+            }
+
+            // 记录检测结果（无论是否确认）
             await saveBlockHistory(handle, displayName, getArticleAvatar(article), replyText);
-            console.log("[CAO] history saved, now auto-blocking", handle);
-            // 自动屏蔽 + 自动隐藏
-            await autoBlockAndHide(article, handle);
+            // 只有确认过的才自动屏蔽
+            if (featureResult.confirmed) {
+              console.log("[CAO] confirmed, now auto-blocking", handle);
+              await autoBlockAndHide(article, handle);
+            } else {
+              console.log("[CAO] suspected only, not auto-blocking", handle);
+            }
           }
         } catch (e) {
           console.warn("[CAO] scan iteration error for " + (handle || "?"), e);

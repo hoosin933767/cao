@@ -187,7 +187,10 @@
     return false;
   }
 
-  /** 综合维度评分：检查显示名 + 回复 + handle + pageAuthor 多维信号 */
+  /** 综合维度评分：检查显示名 + 回复 + handle + pageAuthor 多维信号
+   *  返回 { isScam, score, features, bioCheck }
+   *  - bioCheck: 是否需要 profile bio 验证（当 isScam 且 @了第三方时）
+   */
   function detectAccount(displayName, replyText, handle, pageAuthor) {
     var dims = { displayName: 0, reply: 0, handle: 0, cross: 0 };
     var reasons = [];
@@ -325,7 +328,37 @@
     }
 
     var total = dims.displayName + dims.reply + dims.handle + dims.cross;
-    return { isScam: total <= -4, score: total, features: reasons };
+    var isSuspicious = total <= -4;
+    // 多个维度命中时，需要 bio 确认
+    var dimCount = [dims.displayName, dims.reply, dims.handle, dims.cross].filter(function(d) { return d < 0; }).length;
+    var needsBioCheck = isSuspicious && dimCount >= 2;
+    return { isScam: isSuspicious, score: total, features: reasons, needsBioCheck: needsBioCheck };
+  }
+
+  /** 检测 profile bio 是否含成人推广信号（确认阶段使用） */
+  function detectBio(text) {
+    if (!text) return false;
+    var cjk = extractCJK(text);
+    if (cjk.length === 0) return false;
+    var cjkStr = cjk.join("");
+    // 成人强词
+    var allStrong = ADULT_STRONG.concat(CUSTOM_KEYWORDS.adultStrong || []);
+    for (var i = 0; i < allStrong.length; i++) {
+      var kwc = extractCJK(allStrong[i]).join("");
+      if (kwc && cjkStr.indexOf(kwc) !== -1) return true;
+    }
+    // 推广词
+    var allPromo = ADULT_PROMO.concat(CUSTOM_KEYWORDS.promo || []);
+    for (var i = 0; i < allPromo.length; i++) {
+      var kwc = extractCJK(allPromo[i]).join("");
+      if (kwc && cjkStr.indexOf(kwc) !== -1) return true;
+    }
+    // 引流信号
+    var allRedirect = REDIRECT_SIGNALS.concat(CUSTOM_KEYWORDS.redirect || []);
+    for (var i = 0; i < allRedirect.length; i++) {
+      if (text.indexOf(allRedirect[i]) !== -1) return true;
+    }
+    return false;
   }
   var ready = false, readyCallbacks = [];
   async function init() {
@@ -338,6 +371,6 @@
     } catch (e) { console.error("[SpamEngine] init failed:", e); }
   }
   function onReady(cb) { if (ready) return cb(); readyCallbacks.push(cb); }
-  window.SpamEngine = { init: init, onReady: onReady, ready: function() { return ready; }, normalizeText: normalizeText, detectAccount: detectAccount, isHandleRandom: isHandleRandom, trainKeywords: trainKeywords, loadCustomKeywords: loadCustomKeywords, addCustomKeyword: addCustomKeyword, removeCustomKeyword: removeCustomKeyword, getCustomKeywords: getCustomKeywords };
+  window.SpamEngine = { init: init, onReady: onReady, ready: function() { return ready; }, normalizeText: normalizeText, detectAccount: detectAccount, detectBio: detectBio, isHandleRandom: isHandleRandom, trainKeywords: trainKeywords, loadCustomKeywords: loadCustomKeywords, addCustomKeyword: addCustomKeyword, removeCustomKeyword: removeCustomKeyword, getCustomKeywords: getCustomKeywords };
   init();
 })();
