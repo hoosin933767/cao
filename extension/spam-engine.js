@@ -187,10 +187,12 @@
     return false;
   }
 
-  /** 综合维度评分：检查显示名 + 回复 + handle 多维信号 */
-  function detectAccount(displayName, replyText, handle) {
+  /** 综合维度评分：检查显示名 + 回复 + handle + pageAuthor 多维信号 */
+  function detectAccount(displayName, replyText, handle, pageAuthor) {
     var dims = { displayName: 0, reply: 0, handle: 0, cross: 0 };
     var reasons = [];
+    // 正常交互白名单：不会作为引流目标的账号
+    var WHITELIST = ["grok","elonmusk","jack","x","twitter","communitynotes"];
 
     // ── Dim1: 显示名 (max -4) ──
     (function() {
@@ -282,14 +284,14 @@
           }
         }
         // @第三方引流 + 检查 @ 的账号 handle 是否可疑
+        // 排除：原文作者(pageAuthor)、白名单账号
         if (rt.indexOf("@") !== -1) {
           var atMatches = rt.match(/@[A-Za-z0-9_]{1,15}/g) || [];
           if (atMatches.length > 0) {
-            var atHandle = atMatches[0].slice(1);
-            // @ 的 handle 随机生成→成人号常见行为
-            if (isHandleRandom(atHandle)) {
-              dims.reply = Math.min(dims.reply - 2, -3);
-              reasons.push({ k: "回复-@引流(handle随机)", v: atHandle, p: -2 });
+            var atHandle = atMatches[0].slice(1).toLowerCase();
+            // 排除原文作者（正常回复链）和内置白名单
+            if (atHandle === (pageAuthor || "").toLowerCase() || WHITELIST.indexOf(atHandle) !== -1) {
+              // 正常的 @，不扣分
             } else {
               dims.reply = Math.min(dims.reply - 1, -3);
               reasons.push({ k: "回复-@引流", v: atHandle, p: -1 });

@@ -1126,7 +1126,7 @@
           // --- 综合维度评分 ---
 
           let featureResult = null;
-          const accountResult = window.SpamEngine.detectAccount(displayName, replyText, handle);
+          const accountResult = window.SpamEngine.detectAccount(displayName, replyText, handle, pageAuthorHandle);
           if (accountResult.isScam) {
             featureResult = accountResult;
           }
