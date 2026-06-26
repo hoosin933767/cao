@@ -4,20 +4,7 @@
     console.warn("[CAO] Unhandled rejection:", e.reason ? (e.reason.message || e.reason) : e);
   });
 
-  // 注入页面级脚本：从 __INITIAL_STATE__ 提取当前用户 handle
-  // 内联 script，不依赖 chrome.runtime.getURL（避免 Extension context invalidated）
-  function injectPageScript() {
-    try {
-      document.getElementById("__CAO_USER__")?.remove();
-      var s = document.createElement("script");
-      s.id = "__CAO_USER_INJECTED__";
-      s.textContent = '(function(){try{var d=window.__INITIAL_STATE__;if(d&&d.meta&&d.meta.currentUser){var h=d.meta.currentUser.screen_name||d.meta.currentUser.screenName;if(h){var el=document.getElementById("__CAO_USER__")||document.createElement("div");el.id="__CAO_USER__";el.style.display="none";el.textContent=JSON.stringify({handle:h.toLowerCase()});document.documentElement.appendChild(el);}}}catch(e){}})();';
-      document.documentElement.appendChild(s);
-    } catch(e) {}
-  }
-  injectPageScript();
-
-  // 监听账号切换：X 侧边栏用户菜单变化时清除缓存 + 重新注入
+  // 监听账号切换：X 切换用户后清除 handle 缓存
   var accountSwitchTimer = null;
   function watchAccountSwitch() {
     try {
@@ -26,17 +13,9 @@
       var obs = new MutationObserver(function() {
         if (accountSwitchTimer) clearTimeout(accountSwitchTimer);
         accountSwitchTimer = setTimeout(function() {
-          // 延迟等 X 完成切换后再重查
-          currentUserHandle = "";
           currentXHandle = "";
-          myHandlePromise = null;
-          document.getElementById("__CAO_USER_INJECTED__")?.remove();
-          injectPageScript();
-          // 重新同步支持者
-          setTimeout(function() {
-            var h = getMyHandle();
-            if (h) syncSupporter(h);
-          }, 3000);
+          // 切换后重试同步
+          retryGetHandle(function(h) { if (h) syncSupporter(h); });
         }, 2000);
       });
       obs.observe(target, { childList: true, subtree: true, attributes: true, characterData: true });
@@ -965,23 +944,11 @@
     } catch (e) {}
   }
 
-  // 不依赖扫描，任何页面都尝试获取 handle 并同步
-  waitForMyHandle().then(function(handle) {
+  // 轮询获取 handle 并同步支持者（不依赖任何缓存，每次调用都重新读 DOM）
+  retryGetHandle(function(handle) {
     if (handle) { console.log("[CAO] handle ready, syncing supporter"); syncSupporter(handle); }
-    else console.log("[CAO] handle not found in first 8s");
+    else console.log("[CAO] handle not found after 15s");
   });
-  // 10 秒后如果还没拿到，直接读 DOM 重试（绕过 waitForMyHandle 的缓存）
-  setTimeout(function() {
-    var handle = getMyHandle();
-    if (handle) { console.log("[CAO] handle ready on retry, syncing supporter"); syncSupporter(handle); }
-    else console.log("[CAO] handle still not found at 10s");
-  }, 10000);
-  // 30 秒再兜底一次
-  setTimeout(function() {
-    var handle = getMyHandle();
-    if (handle) { console.log("[CAO] handle ready on 3rd retry, syncing supporter"); syncSupporter(handle); }
-    else console.log("[CAO] handle never found at 30s");
-  }, 30000);
 
   // ── 内联屏蔽：在当前推文详情页直接屏蔽（twitter-helper 方案）──
 
@@ -1088,67 +1055,42 @@
     );
   }
 
-  /** 从 DOM 获取当前登录用户自己的 handle */
-  let currentUserHandle = null;
-  let myHandlePromise = null;
+  /** 从 DOM 获取当前登录用户自己的 handle（每次调用都重新读 DOM，不缓存） */
   function getMyHandle() {
-    if (!currentUserHandle) {
-      // 从注入的 __CAO_USER__ 读取（由 injected.js 写入，永远可靠）
-      try {
-        var el = document.getElementById("__CAO_USER__");
-        if (el) {
-          var data = JSON.parse(el.textContent || "{}");
-          if (data.handle) currentUserHandle = data.handle;
-        }
-      } catch (e) {}
-      if (!currentUserHandle) {
-        try {
-          const link = document.querySelector('a[data-testid="AppTabBar_Profile_Link"]')
-                    || document.querySelector('a[data-testid="AppTabBar-Profile"]');
-          if (link) {
-            const href = link.getAttribute("href") || "";
-            if (href && href !== "/") {
-              currentUserHandle = href.replace(/^\//, "").toLowerCase();
-            }
-          }
-        } catch (e) {}
+    try {
+      // 方案1：侧边栏用户菜单（最可靠，任何页面都有）
+      var userCell = document.querySelector('[data-testid="SideNav_AccountSwitcher_Button"]');
+      if (userCell) {
+        var text = userCell.textContent || "";
+        var match = text.match(/@(\w+)/);
+        if (match) return match[1].toLowerCase();
       }
-      if (!currentUserHandle) {
-        try {
-          const userCell = document.querySelector('[data-testid="SideNav_AccountSwitcher_Button"]');
-          if (userCell) {
-            const text = userCell.textContent || "";
-            const match = text.match(/@(\w+)/);
-            if (match) currentUserHandle = match[1].toLowerCase();
-          }
-        } catch (e) {}
+      // 方案2：左侧导航 Profile 链接
+      var link = document.querySelector('a[data-testid="AppTabBar_Profile_Link"]')
+              || document.querySelector('a[data-testid="AppTabBar-Profile"]');
+      if (link) {
+        var href = link.getAttribute("href") || "";
+        if (href && href !== "/") return href.replace(/^\//, "").toLowerCase();
       }
-    }
-    return currentUserHandle || "";
+    } catch(e) {}
+    return "";
   }
-  /** 从当前页面 URL 提取推文作者 handle（如 x.com/fuckxegg2/status/... → fuckxegg2） */
+  /** 从当前页面 URL 提取推文作者 handle（如 x.com/user/status/... → user） */
   function getPageTweetAuthorHandle() {
     var m = location.pathname.match(/^\/(\w+)\/status\//);
     return m ? m[1].toLowerCase() : null;
   }
-  /** 等待 handle 就绪（重试 DOM 最多 8 秒） */
-  async function waitForMyHandle() {
-    if (currentUserHandle) return currentUserHandle;
-    if (!myHandlePromise) {
-      myHandlePromise = new Promise((resolve) => {
-        let attempts = 0;
-        const maxAttempts = 16; // 8秒
-        function poll() {
-          const h = getMyHandle();
-          if (h) { resolve(h); return; }
-          attempts++;
-          if (attempts >= maxAttempts) { resolve(""); return; }
-          setTimeout(poll, 500);
-        }
-        poll();
-      });
-    }
-    return await myHandlePromise;
+  /** 轮询获取 handle（最多 15 秒，500ms 间隔），每次调用都重新轮询 */
+  function retryGetHandle(callback, timeoutMs) {
+    timeoutMs = timeoutMs || 15000;
+    var interval = 500;
+    var elapsed = 0;
+    var timer = setInterval(function() {
+      var h = getMyHandle();
+      if (h) { clearInterval(timer); callback(h); return; }
+      elapsed += interval;
+      if (elapsed >= timeoutMs) { clearInterval(timer); callback(""); }
+    }, interval);
   }
 
   // 加载自动屏蔽设置
@@ -1173,7 +1115,10 @@
       }
 
       const allArticles = document.querySelectorAll('article');
-      const myHandle = await waitForMyHandle();
+      // 获取当前用户 handle（promise 包装的轮询，不缓存）
+      const myHandle = await new Promise(function(resolve) {
+        retryGetHandle(function(h) { resolve(h); }, 8000);
+      });
       const pageAuthorHandle = getPageTweetAuthorHandle();
       for (const article of allArticles) {
         const handle = getArticleHandle(article);
@@ -1239,7 +1184,7 @@
     // 安全兜底：防止对自己执行屏蔽
     if (handle) {
       var h = handle.toLowerCase();
-      var myH = (currentUserHandle || "").toLowerCase();
+      var myH = getMyHandle();
       var pageAuthor = getPageTweetAuthorHandle();
       if ((myH && h === myH) || (pageAuthor && h === pageAuthor)) return;
     }
