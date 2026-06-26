@@ -6,15 +6,43 @@
 
   // 注入页面级脚本：从 __INITIAL_STATE__ 提取当前用户 handle
   // 内联 script，不依赖 chrome.runtime.getURL（避免 Extension context invalidated）
-  (function() {
+  function injectPageScript() {
     try {
-      if (document.getElementById("__CAO_USER_INJECTED__")) return;
+      document.getElementById("__CAO_USER__")?.remove();
       var s = document.createElement("script");
       s.id = "__CAO_USER_INJECTED__";
-      s.textContent = '(function(){try{var d=window.__INITIAL_STATE__;if(d&&d.meta&&d.meta.currentUser){var h=d.meta.currentUser.screen_name||d.meta.currentUser.screenName;if(h){var el=document.createElement("div");el.id="__CAO_USER__";el.style.display="none";el.textContent=JSON.stringify({handle:h.toLowerCase()});document.documentElement.appendChild(el);}}}catch(e){}})();';
+      s.textContent = '(function(){try{var d=window.__INITIAL_STATE__;if(d&&d.meta&&d.meta.currentUser){var h=d.meta.currentUser.screen_name||d.meta.currentUser.screenName;if(h){var el=document.getElementById("__CAO_USER__")||document.createElement("div");el.id="__CAO_USER__";el.style.display="none";el.textContent=JSON.stringify({handle:h.toLowerCase()});document.documentElement.appendChild(el);}}}catch(e){}})();';
       document.documentElement.appendChild(s);
     } catch(e) {}
-  })();
+  }
+  injectPageScript();
+
+  // 监听账号切换：X 侧边栏用户菜单变化时清除缓存 + 重新注入
+  var accountSwitchTimer = null;
+  function watchAccountSwitch() {
+    try {
+      var target = document.querySelector('[data-testid="SideNav_AccountSwitcher_Button"]')
+                || document.body;
+      var obs = new MutationObserver(function() {
+        if (accountSwitchTimer) clearTimeout(accountSwitchTimer);
+        accountSwitchTimer = setTimeout(function() {
+          // 延迟等 X 完成切换后再重查
+          currentUserHandle = "";
+          currentXHandle = "";
+          myHandlePromise = null;
+          document.getElementById("__CAO_USER_INJECTED__")?.remove();
+          injectPageScript();
+          // 重新同步支持者
+          setTimeout(function() {
+            var h = getMyHandle();
+            if (h) syncSupporter(h);
+          }, 3000);
+        }, 2000);
+      });
+      obs.observe(target, { childList: true, subtree: true, attributes: true, characterData: true });
+    } catch(e) {}
+  }
+  watchAccountSwitch();
   const supportedHosts = new Set(["twitter.com", "www.twitter.com", "x.com", "www.x.com"]);
   const ignoredPaths = new Set([
     "compose",
