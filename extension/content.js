@@ -1086,27 +1086,57 @@
     return m ? m[1].toLowerCase() : null;
   }
 
-  /** 获取某个账号的 profile bio（直接 fetch 个人主页，解析 meta description，更快更可靠） */
-  function getProfileBio(handle) {
-    return new Promise(function(resolve) {
-      if (!handle) { resolve(""); return; }
-      fetch("https://x.com/" + encodeURIComponent(handle), { credentials: "include" }).then(function(resp) {
-        if (!resp.ok) { resolve(""); return; }
-        // 只取前 8KB 就够（meta 在 head 里）
-        resp.text().then(function(html) {
-          // X 的 profile page meta description：'@"handle"'s profile - "bio text"'
-          var match = html.match(/<meta\s+name="description"\s+content="([^"]+)"/i);
-          if (match) {
-            var desc = match[1];
-            // X 会把 handle 和 's profile 加在前面，去掉
-            desc = desc.replace(/^@\w+'s\s+profile\s*[-–—]\s*/i, "");
-            resolve(desc);
-          } else {
-            resolve("");
+  /** 批量获取多个账号的 profile bio（并发 + 取前 8KB 断流 + 内存缓存，避免重复拉） */
+  var bioCache = {};
+  function batchGetProfileBio(handles) {
+    var unique = {};
+    handles.forEach(function(h) { if (h && !bioCache[h]) unique[h] = true; });
+    var uniqueList = Object.keys(unique);
+    if (uniqueList.length === 0) return Promise.resolve();
+    return Promise.all(uniqueList.map(function(handle) {
+      return new Promise(function(resolve) {
+        var controller = new AbortController();
+        fetch("https://x.com/" + encodeURIComponent(handle), { credentials: "include", signal: controller.signal }).then(function(resp) {
+          if (!resp.ok) { bioCache[handle] = ""; controller.abort(); resolve(); return; }
+          var reader = resp.body.getReader();
+          var chunks = [];
+          var total = 0;
+          function read() {
+            reader.read().then(function(result) {
+              if (result.done) {
+                var html = chunks.join("");
+                bioCache[handle] = extractBioFromHtml(html);
+                controller.abort();
+                resolve();
+                return;
+              }
+              chunks.push(new TextDecoder().decode(result.value));
+              total += result.value.length;
+              if (total >= 8192) {
+                var html = chunks.join("");
+                bioCache[handle] = extractBioFromHtml(html);
+                controller.abort();
+                resolve();
+                return;
+              }
+              read();
+            }).catch(function() { bioCache[handle] = ""; resolve(); });
           }
-        });
-      }).catch(function() { resolve(""); });
-    });
+          read();
+        }).catch(function() { bioCache[handle] = ""; resolve(); });
+      });
+    }));
+  }
+
+  /** 从 HTML 中提取 profile bio（meta description） */
+  function extractBioFromHtml(html) {
+    var match = html.match(/<meta\s+name="description"\s+content="([^"]+)"/i);
+    if (match) {
+      var desc = match[1];
+      desc = desc.replace(/^@\w+'s\s+profile\s*[-–—]\s*/i, "");
+      return desc;
+    }
+    return "";
   }
 
   // 加载自动屏蔽设置
@@ -1134,87 +1164,78 @@
       // 当前用户 handle（直接读 DOM，不轮询）
       const myHandle = getMyHandle();
       const pageAuthorHandle = getPageTweetAuthorHandle();
+
+      // ── 第一遍：检测 + 隐藏，收集需要 bio 确认的 handle ──
+      var pendingBio = {}; // handle → { article, displayName, replyText, featureResult }
       for (const article of allArticles) {
         const handle = getArticleHandle(article);
-        // 跳过自己、已建议、已检测过的、以及主推文作者（url 中的 handle）
         if (!handle || suggestedAccounts.has(handle) || article.classList.contains("flagged-spam") || (myHandle && handle.toLowerCase() === myHandle) || (pageAuthorHandle && handle.toLowerCase() === pageAuthorHandle)) continue;
         const replyText = getArticleReplyText(article);
-        // 回复文本为空时不跳过，可能名字本身就是垃圾（如纯 emoji 回复）
-
-        // 认证账号（蓝V/金V/灰V）跳过检测
         if (isVerifiedAccount(article)) continue;
 
         try {
           const displayName = getArticleDisplayName(article);
-
-          // --- 综合维度评分（阶段1：疑似） ---
-
-          let featureResult = null;
           const accountResult = window.SpamEngine.detectAccount(displayName, replyText, handle, pageAuthorHandle);
-          if (accountResult.isScam) {
-            featureResult = accountResult;
-            featureResult.confirmed = false;
+          if (!accountResult.isScam) continue;
 
-            // 高置信（单维度命中成人强词等）→ 直接确认
-            if (!featureResult.needsBioCheck) {
-              featureResult.confirmed = true;
-            }
-          }
+          accountResult.confirmed = !accountResult.needsBioCheck;
+          article.classList.add("flagged-spam");
+          injectFeatureBadge(article, handle, accountResult);
+          hideArticle(article);
 
-          if (featureResult) {
-            article.classList.add("flagged-spam");
-            injectFeatureBadge(article, handle, featureResult);
-            console.log("[CAO] SUSPECTED:", handle, "score:", featureResult.score, "features:", JSON.stringify(featureResult.features));
-
-            // 先隐藏回复（无论是否确认，疑似就隐藏）
-            hideArticle(article);
-            console.log("[CAO] hidden:", handle);
-
-            // 阶段2：资料介绍确认
-            if (featureResult.needsBioCheck) {
-              var bioConfirmed = false;
-              try {
-                // 查本人 bio
-                var bioText = await getProfileBio(handle);
-                if (bioText && window.SpamEngine.detectBio(bioText)) {
-                  console.log("[CAO] BIO confirmed (self):", handle, "bio:", bioText);
-                  featureResult.features.push({ k: "资料确认(本人)", v: (bioText.length > 20 ? bioText.slice(0, 20) + "…" : bioText), p: -3 });
-                  featureResult.score -= 3;
-                  bioConfirmed = true;
-                }
-                // 如果有 @ 第三方，也查对方的 bio
-                if (!bioConfirmed && featureResult.mentionedHandle) {
-                  var mentionedBio = await getProfileBio(featureResult.mentionedHandle);
-                  if (mentionedBio && window.SpamEngine.detectBio(mentionedBio)) {
-                    console.log("[CAO] BIO confirmed (@'d):", featureResult.mentionedHandle, "bio:", mentionedBio);
-                    featureResult.features.push({ k: "资料确认(@)", v: featureResult.mentionedHandle, p: -3 });
-                    featureResult.score -= 3;
-                    bioConfirmed = true;
-                  }
-                }
-              } catch (e) {
-                console.warn("[CAO] bio check failed for", handle, e);
-              }
-
-              if (bioConfirmed) {
-                featureResult.confirmed = true;
-              } else {
-                console.log("[CAO] BIO clean for", handle, "- hidden only, not confirmed");
-              }
-            }
-
-            // 记录检测结果
+          // 需要 bio 确认的，加入批次
+          if (accountResult.needsBioCheck) {
+            pendingBio[handle] = { article: article, displayName: displayName, replyText: replyText, featureResult: accountResult };
+          } else {
+            // 不需要 bio 确认 → 直接记录 + 屏蔽
             await saveBlockHistory(handle, displayName, getArticleAvatar(article), replyText);
-            // 确认 → 自动屏蔽
-            if (featureResult.confirmed) {
-              console.log("[CAO] confirmed, now auto-blocking", handle);
-              await autoBlockAndHide(article, handle);
-            }
+            await autoBlockAndHide(article, handle);
           }
         } catch (e) {
-          console.warn("[CAO] scan iteration error for " + (handle || "?"), e);
+          console.warn("[CAO] scan error for", handle || "?", e);
         }
       }
+
+      // ── 第二遍：批量拉 bio（并发） ──
+      var bioHandles = [];
+      Object.keys(pendingBio).forEach(function(h) {
+        bioHandles.push(h);
+        var p = pendingBio[h];
+        if (p.featureResult.mentionedHandle) bioHandles.push(p.featureResult.mentionedHandle);
+      });
+      if (bioHandles.length > 0) {
+        console.log("[CAO] batch fetching", bioHandles.length, "bios");
+        await batchGetProfileBio(bioHandles);
+      }
+
+      // ── 第三遍：bio 结果处理 ──
+       var confirmTasks = [];
+       Object.keys(pendingBio).forEach(function(handle) {
+         var p = pendingBio[handle];
+         var bioText = bioCache[handle] || "";
+         var confirmed = (bioText && window.SpamEngine.detectBio(bioText));
+         if (!confirmed && p.featureResult.mentionedHandle) {
+           var mentionedBio = bioCache[p.featureResult.mentionedHandle] || "";
+           if (mentionedBio && window.SpamEngine.detectBio(mentionedBio)) {
+             p.featureResult.features.push({ k: "资料确认(@)", v: p.featureResult.mentionedHandle, p: -3 });
+             p.featureResult.score -= 3;
+             confirmed = true;
+           }
+         }
+         if (confirmed) {
+           p.featureResult.features.push({ k: "资料确认(本人)", v: (bioText.length > 20 ? bioText.slice(0,20) + "…" : bioText), p: -3 });
+           p.featureResult.score -= 3;
+           p.featureResult.confirmed = true;
+           confirmTasks.push({ handle: handle, data: p });
+         }
+       });
+
+       // ── 第四遍：记录 + 屏蔽 ──
+       for (var i = 0; i < confirmTasks.length; i++) {
+         var t = confirmTasks[i];
+         await saveBlockHistory(t.handle, t.data.displayName, getArticleAvatar(t.data.article), t.data.replyText);
+          await autoBlockAndHide(t.data.article, t.handle);
+       }
     } finally {
       vectorScanRunning = false;
     }
