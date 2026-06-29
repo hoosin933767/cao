@@ -840,8 +840,12 @@
   async function scheduleScan() {
     if (!isTweetDetailPage()) return;
     window.clearTimeout(scanTimer);
-    await scanWithVectorDB();
-    injectReportButtons();
+    scanTimer = window.setTimeout(async function() {
+      await scanWithVectorDB().catch(function(e) {
+         console.warn("[CAO] initial scan error:", e);
+       });
+      injectReportButtons();
+    }, 500);
   }
 
   function scheduleAdScan() {
@@ -889,9 +893,7 @@
         childList: true,
         subtree: true,
       });
-      scanWithVectorDB().then(function() { injectReportButtons(); }).catch(function(e) {
-        console.warn("[CAO] initial scan error:", e);
-      });
+      scanWithVectorDB();
     }
 
     // 首次加载：如果在主页，启动广告 observer
@@ -1149,6 +1151,8 @@
   })();
 
   /** 等待 SpamEngine 就绪后，扫描当前页面所有回复文本进行特征检测 */
+  var scanDebounceTimer = null;
+  var scanPageUrl = "";
   async function scanWithVectorDB() {
     if (vectorScanRunning) return;
     vectorScanRunning = true;
@@ -1159,6 +1163,15 @@
           window.SpamEngine?.onReady(() => { vectorScanQueued = false; scanWithVectorDB(); });
         }
         return;
+      }
+
+      // 切换页面时重置计数
+      var currentUrl = window.location.href;
+      if (scanPageUrl !== currentUrl) {
+        hiddenCount = 0;
+        blockedCount = 0;
+        bioCache = {};
+        scanPageUrl = currentUrl;
       }
 
       const allArticles = document.querySelectorAll('article');

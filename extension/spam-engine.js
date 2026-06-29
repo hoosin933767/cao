@@ -341,19 +341,19 @@
     return { isScam: isSuspicious, score: total, features: reasons, needsBioCheck: needsBioCheck, mentionedHandle: mentionedHandle };
   }
 
-  /** 检测 profile bio 是否含成人推广信号（确认阶段使用） */
+  /** 检测 profile bio 是否含成人推广信号（确认阶段使用）
+   *  支持中文词 + 引流链接域名 + bio-emoji 组合 */
   function detectBio(text) {
     if (!text) return false;
+    // 成人强词（中文）
     var cjk = extractCJK(text);
-    if (cjk.length === 0) return false;
     var cjkStr = cjk.join("");
-    // 成人强词
     var allStrong = ADULT_STRONG.concat(CUSTOM_KEYWORDS.adultStrong || []);
     for (var i = 0; i < allStrong.length; i++) {
       var kwc = extractCJK(allStrong[i]).join("");
       if (kwc && cjkStr.indexOf(kwc) !== -1) return true;
     }
-    // 推广词
+    // 推广词（中文）
     var allPromo = ADULT_PROMO.concat(CUSTOM_KEYWORDS.promo || []);
     for (var i = 0; i < allPromo.length; i++) {
       var kwc = extractCJK(allPromo[i]).join("");
@@ -364,6 +364,17 @@
     for (var i = 0; i < allRedirect.length; i++) {
       if (text.indexOf(allRedirect[i]) !== -1) return true;
     }
+    // 引流链接域名（bio 中常见的成人推广短链）
+    var bioLinkDomains = ["linktr.ee","beacons.ai","bio.site","msha.ke","hoo.be","snipfeed.co","withkoji.com","t.co","shopmy.us","o3j1.top"];
+    var linkMatch = text.match(/https?:\/\/[^\s]+/g) || [];
+    for (var li = 0; li < linkMatch.length; li++) {
+      var url = linkMatch[li].toLowerCase();
+      for (var di = 0; di < bioLinkDomains.length; di++) {
+        if (url.indexOf(bioLinkDomains[di]) !== -1) return true;
+      }
+    }
+    // 中文 bio + 含链接 = 高概率推广（正常用户 bio 有链接的少，垃圾号几乎都有）
+    if (cjk.length > 0 && linkMatch.length > 0) return true;
     return false;
   }
   var ready = false, readyCallbacks = [];
