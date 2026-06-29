@@ -45,6 +45,7 @@
   const adAccountsStorageKey = "mv3AdTwitterAccounts";
   const hideAdStorageKey = "mv3HideAdEnabled";
   const garbageHiddenClass = "mv3-twitter-garbage-hidden";
+  const garbageConfirmedClass = "mv3-twitter-garbage-confirmed";
   var autoBlockEnabled = true;
   const adHiddenClass = "mv3-twitter-ad-hidden";
 
@@ -1181,7 +1182,7 @@
           accountResult.confirmed = !accountResult.needsBioCheck;
           article.classList.add("flagged-spam");
           injectFeatureBadge(article, handle, accountResult);
-          hideArticle(article);
+          hideArticle(article, accountResult.confirmed);
 
           // 需要 bio 确认的，加入批次
           if (accountResult.needsBioCheck) {
@@ -1242,14 +1243,18 @@
   }
 
   /** 隐藏某个回复（疑似但未确认时使用，添加垃圾隐藏类） */
-  function hideArticle(article) {
+  var hiddenCount = 0, blockedCount = 0;
+  function hideArticle(article, confirmed) {
     if (!article || article.classList.contains(garbageHiddenClass)) return;
     article.classList.add(garbageHiddenClass);
-    // 在回复上打标签标记为"疑似"
+    if (confirmed) article.classList.add(garbageConfirmedClass);
+    if (confirmed) blockedCount++; else hiddenCount++;
+    refreshStatusBar();
+    // 在回复上打标签标记
     try {
       var badge = document.createElement("span");
       badge.className = "mv3-feature-badge";
-      badge.textContent = "⚠ 疑似";
+      badge.textContent = confirmed ? "🔒 已屏蔽" : "⚠ 疑似";
       badge.style.cssText = [
         "display:inline-block",
         "font:600 10px/1.2 Arial,sans-serif",
@@ -1263,6 +1268,38 @@
       var nameEl = article.querySelector('[data-testid="User-Name"]');
       if (nameEl) nameEl.appendChild(badge);
     } catch(e) {}
+  }
+
+  /** 悬浮状态栏：显示隐藏/屏蔽统计 + 切换显示/隐藏所有被隐藏的回复 */
+  var toggleShowingHidden = false;
+  function refreshStatusBar() {
+    try {
+      var el = document.getElementById("cao-status-bar");
+      if (!el) {
+        el = document.createElement("div");
+        el.id = "cao-status-bar";
+        el.style.cssText = "position:fixed;bottom:12px;right:12px;z-index:9999;background:#1d1d1d;color:#fff;border-radius:8px;padding:8px 14px;font:13px/1.4 Arial,sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.3);display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none";
+        el.addEventListener("click", toggleHiddenReplies);
+        document.body.appendChild(el);
+      }
+      el.innerHTML = "🧹 已隐藏 " + hiddenCount + " · 已屏蔽 " + blockedCount + " <span style='opacity:.6'>[点击切换]</span>";
+    } catch(e) {}
+  }
+
+  function toggleHiddenReplies() {
+    toggleShowingHidden = !toggleShowingHidden;
+    var articles = document.querySelectorAll("article." + garbageHiddenClass);
+    for (var i = 0; i < articles.length; i++) {
+      if (toggleShowingHidden) {
+        articles[i].style.display = "";
+      } else {
+        articles[i].style.display = "none";
+      }
+    }
+    var el = document.getElementById("cao-status-bar");
+    if (el) {
+      el.style.border = toggleShowingHidden ? "2px solid #fbbf24" : "none";
+    }
   }
 
   /** 自动屏蔽账号并隐藏回复 */
