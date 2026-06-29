@@ -1089,46 +1089,38 @@
     return m ? m[1].toLowerCase() : null;
   }
 
-  /** 批量获取多个账号的 profile bio（并发 + 取前 8KB 断流 + 内存缓存，避免重复拉） */
+  /** 批量获取多个账号的 profile bio（并发限流 + 取前 8KB 断流 + 内存缓存） */
   var bioCache = {};
   function batchGetProfileBio(handles) {
     var unique = {};
     handles.forEach(function(h) { if (h && !bioCache[h]) unique[h] = true; });
     var uniqueList = Object.keys(unique);
     if (uniqueList.length === 0) return Promise.resolve();
-    return Promise.all(uniqueList.map(function(handle) {
+    // 并发上限 5，避免触发 X 限流
+    var concurrency = 5;
+    var index = 0;
+    var results = [];
+    function next() {
+      if (index >= uniqueList.length) return Promise.resolve();
+      var handle = uniqueList[index++];
       return new Promise(function(resolve) {
         var controller = new AbortController();
+        var timeout = setTimeout(function() { controller.abort(); bioCache[handle] = ""; resolve(); }, 8000);
         fetch("https://x.com/" + encodeURIComponent(handle), { credentials: "include", signal: controller.signal }).then(function(resp) {
-          if (!resp.ok) { bioCache[handle] = ""; controller.abort(); resolve(); return; }
-          var reader = resp.body.getReader();
-          var chunks = [];
-          var total = 0;
-          function read() {
-            reader.read().then(function(result) {
-              if (result.done) {
-                var html = chunks.join("");
-                bioCache[handle] = extractBioFromHtml(html);
-                controller.abort();
-                resolve();
-                return;
-              }
-              chunks.push(new TextDecoder().decode(result.value));
-              total += result.value.length;
-              if (total >= 8192) {
-                var html = chunks.join("");
-                bioCache[handle] = extractBioFromHtml(html);
-                controller.abort();
-                resolve();
-                return;
-              }
-              read();
-            }).catch(function() { bioCache[handle] = ""; resolve(); });
-          }
-          read();
-        }).catch(function() { bioCache[handle] = ""; resolve(); });
-      });
-    }));
+          clearTimeout(timeout);
+          if (!resp.ok) { bioCache[handle] = ""; resolve(); return; }
+          resp.text().then(function(html) {
+            bioCache[handle] = extractBioFromHtml(html);
+            resolve();
+          }).catch(function() { bioCache[handle] = ""; resolve(); });
+        }).catch(function() { clearTimeout(timeout); bioCache[handle] = ""; resolve(); });
+      }).then(next);
+    }
+    var workers = [];
+    for (var i = 0; i < Math.min(concurrency, uniqueList.length); i++) {
+      workers.push(next());
+    }
+    return Promise.all(workers);
   }
 
   /** 从 HTML 中提取 profile bio（meta description） */
