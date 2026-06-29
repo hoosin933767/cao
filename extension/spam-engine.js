@@ -333,9 +333,11 @@
 
     var total = dims.displayName + dims.reply + dims.handle + dims.cross;
     var isSuspicious = total <= -4;
-    // 仅显示名成人强词命中（-4）且其他维度无信号 → 高置信，跳过 bio 确认
-    // 其他所有情况都需要资料介绍确认
-    var needsBioCheck = isSuspicious && !(dims.displayName === -4 && dims.reply === 0 && dims.handle === 0 && dims.cross === 0);
+    // 不需要 bio 确认的情况：
+    // 1. 显示名含成人强词（-4）且其他维度无信号 → 高置信
+    // 2. 总分 ≤ -6 → 信号足够强，直接确认（回复内容已有充分证据）
+    // 其他情况需要资料介绍确认
+    var needsBioCheck = isSuspicious && !(dims.displayName === -4 && dims.reply === 0 && dims.handle === 0 && dims.cross === 0) && !(total <= -6);
     return { isScam: isSuspicious, score: total, features: reasons, needsBioCheck: needsBioCheck, mentionedHandle: mentionedHandle };
   }
 

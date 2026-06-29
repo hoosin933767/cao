@@ -1223,9 +1223,14 @@
              confirmed = true;
            }
          }
+         // fallback: bio 拉取失败但维度分足够低（≤ -5）→ 仍然确认（不因为拉取失败而放过）
+         if (!confirmed && p.featureResult.score <= -5) {
+           confirmed = true;
+         }
          if (confirmed) {
-           p.featureResult.features.push({ k: "资料确认(本人)", v: (bioText.length > 20 ? bioText.slice(0,20) + "…" : bioText), p: -3 });
-           p.featureResult.score -= 3;
+           if (bioText) {
+             p.featureResult.features.push({ k: "资料确认(本人)", v: (bioText.length > 20 ? bioText.slice(0,20) + "…" : bioText), p: -3 });
+           }
            p.featureResult.confirmed = true;
            confirmTasks.push({ handle: handle, data: p });
          }
