@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CAO · Clean Accounts Optimizer</title>
+  <meta name="description" content="CAO · Clean Accounts Optimizer — 自动屏蔽 X/Twitter 垃圾内容，装上即用。">
+  <meta property="og:title" content="CAO · Clean Accounts Optimizer">
+  <meta property="og:description" content="CAO · Clean Accounts Optimizer — 自动屏蔽 X/Twitter 垃圾内容，装上即用。">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+      background: #0a0a0a;
+      color: #e5e7eb;
+      line-height: 1.6;
+    }
+    .container { max-width: 600px; margin: 0 auto; padding: 80px 24px; }
+
+    .logo {
+      text-align: center;
+      font-size: 48px; font-weight: 800; letter-spacing: -2px;
+      background: linear-gradient(135deg, #60a5fa, #a78bfa);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      margin-bottom: 4px;
+    }
+    .subtitle {
+      text-align: center;
+      font-size: 15px; color: #6b7280; margin-bottom: 32px;
+    }
+
+    .btn {
+      display: block; width: 100%;
+      padding: 16px; border-radius: 10px;
+      font-size: 16px; font-weight: 700; text-decoration: none;
+      text-align: center;
+      background: linear-gradient(135deg, #60a5fa, #a78bfa); color: #fff;
+      margin-bottom: 6px;
+    }
+    .btn:hover { opacity: .85; }
+    .btn-meta {
+      text-align: center; font-size: 12px; color: #6b7280;
+      margin-bottom: 24px;
+    }
+
+    .divider { text-align: center; color: #2d2d44; font-size: 18px; margin: 28px 0; }
+
+    ol {
+      list-style: none; padding: 0;
+    }
+    ol li {
+      counter-increment: step;
+      display: flex; gap: 14px;
+      padding: 16px 0; border-bottom: 1px solid #1f1f1f;
+      font-size: 14px; color: #d1d5db;
+    }
+    ol li:last-child { border-bottom: none; }
+    ol li::before {
+      content: counter(step);
+      flex-shrink: 0;
+      width: 26px; height: 26px;
+      border-radius: 50%;
+      background: #1f1f1f;
+      color: #9ca3af;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 600;
+    }
+    ol li div { padding-top: 2px; }
+    code {
+      background: #1f1f1f; color: #a5b4fc; padding: 1px 6px; border-radius: 4px;
+      font-size: 12px;
+    }
+
+    .footer { text-align: center; color: #6b7280; font-size: 12px; padding: 40px 0; }
+    .footer a { color: #6b7280; text-decoration: none; }
+    .footer a:hover { color: #9ca3af; }
+
+    @media (max-width: 600px) {
+      .container { padding: 48px 20px; }
+      .logo { font-size: 36px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <div class="logo">CAO</div>
+    <div class="subtitle">X Cleaner</div>
+
+    <a class="btn" href="https://chromewebstore.google.com/detail/cao-%E2%80%94-clean-accounts-opti/fjjblfjdddmkidnealikcjdolcjlilob" target="_blank">⬇ 从 Chrome 商店安装</a>
+    <div class="btn-meta">免费 · 自动屏蔽 X/Twitter 垃圾回复 · 即装即用</div>
+
+    <div class="divider">· · ·</div>
+
+    <h2 style="font-size:14px;font-weight:700;text-align:center;color:#9ca3af;margin-bottom:20px;">安装说明</h2>
+
+    <ol>
+      <li><div>点击上方按钮跳转到 Chrome 网上应用店</div></li>
+      <li><div>点击「<strong>添加到 Chrome</strong>」</div></li>
+      <li><div>弹出权限提示，点击「<strong>添加扩展程序</strong>」</div></li>
+      <li><div>打开 <code>x.com</code> 刷新，垃圾回复自动消失</div></li>
+    </ol>
+
+    <div class="footer">
+      <a href="https://github.com/hoosin933767/cao" target="_blank">GitHub</a>
+      &nbsp;·&nbsp;
+      <a href="https://x.com/fuckxegg2" target="_blank">@fuckxegg2</a>
+    </div>
+
+  </div>
+</body>
+</html>

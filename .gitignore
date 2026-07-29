@@ -1,0 +1,14 @@
+assets/
+*.zip
+.DS_Store
+.vercel
+node_modules/
+freqtrade/
+scripts/
+gainers.html
+package.json
+package-lock.json
+*.bak
+outputs/
+bian.html
+api/marketcap.js
