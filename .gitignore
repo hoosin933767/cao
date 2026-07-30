@@ -1,5 +1,6 @@
 assets/
 *.zip
+!releases/*.zip
 .DS_Store
 .vercel
 node_modules/
