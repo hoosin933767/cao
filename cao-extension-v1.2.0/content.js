@@ -1,0 +1,1321 @@
+(function initTwitterAccountBlocker() {
+  // 全局未捕获异常兜底（防止 Chrome 错误按钮出现）
+  window.addEventListener("unhandledrejection", function(e) {
+    console.warn("[CAO] Unhandled rejection:", e.reason ? (e.reason.message || e.reason) : e);
+  });
+
+  // 保持 Service Worker 存活 — 防止 MV3 闲置 30 秒后杀掉 SW 导致 chrome.storage 调用失败
+  (function() {
+    function connect() {
+      try {
+        var port = chrome.runtime.connect({ name: "cao-keepalive" });
+        // 每 20 秒发一次心跳，确保 SW 持续存活
+        var heartbeat = setInterval(function() {
+          try { port.postMessage({ type: "ping" }); } catch(e) { clearInterval(heartbeat); }
+        }, 20000);
+        port.onDisconnect.addListener(function() {
+          clearInterval(heartbeat);
+          setTimeout(connect, 1000);
+        });
+      } catch(e) {}
+    }
+    connect();
+  })();
+
+  // 监听账号切换：X 切换用户后清除 handle 缓存，下次点插件图标时自动同步新账号
+  var accountSwitchTimer = null;
+  function watchAccountSwitch() {
+    try {
+      var target = document.querySelector('[data-testid="SideNav_AccountSwitcher_Button"]')
+                || document.body;
+      var obs = new MutationObserver(function() {
+        if (accountSwitchTimer) clearTimeout(accountSwitchTimer);
+        accountSwitchTimer = setTimeout(function() {
+          currentXHandle = "";
+        }, 2000);
+      });
+      obs.observe(target, { childList: true, subtree: true, attributes: true, characterData: true });
+    } catch(e) {}
+  }
+  watchAccountSwitch();
+  const supportedHosts = new Set(["twitter.com", "www.twitter.com", "x.com", "www.x.com"]);
+  const ignoredPaths = new Set([
+    "compose",
+    "explore",
+    "hashtag",
+    "home",
+    "i",
+    "intent",
+    "login",
+    "messages",
+    "notifications",
+    "search",
+    "settings",
+    "share",
+    "tos",
+  ]);
+  const storageKey = "mv3BlockedTwitterAccounts";
+  const detectedAccountsStorageKey = "mv3DetectedTwitterAccounts";
+  const MAX_DETECTED_ACCOUNTS = 10000;
+  const blockHistoryKey = "mv3BlockHistory";
+  const MAX_BLOCK_HISTORY = 100;
+  const garbageHiddenClass = "mv3-twitter-garbage-hidden";
+  const garbageConfirmedClass = "mv3-twitter-garbage-confirmed";
+  var autoBlockEnabled = true;
+
+
+  if (!supportedHosts.has(window.location.hostname)) {
+    return;
+  }
+
+
+  if (typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.onMessage) {
+    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+      if (!message) {
+        return;
+      }
+
+      if (message.type === "MV3_PING") {
+        sendResponse({ ok: true });
+        return;
+      }
+
+      // ── block.html 批量屏蔽 ──
+      if (message.type === "MV3_BATCH_BLOCK") {
+        const handles = (message.handles || []).filter(h => !blockedAccounts.has(h));
+        sendResponse({ ok: true, count: handles.length });
+        setTimeout(() => inlineBlockUsers(handles), 100);
+        return;
+      }
+
+      // ── Popup 通信 ──
+
+      if (message.type === "MV3_POPUP_GET_STATE") {
+        chrome.storage.local.get({[detectedAccountsStorageKey]: {}}).then((result) => { const accountsByHandle = result[detectedAccountsStorageKey];
+          const autoHandles = Object.keys(accountsByHandle || {});
+          sendResponse({
+                detectedCount: autoHandles.length,
+                totalMergedCount: autoHandles.length,
+                ...getCurrentXUser(),
+          });
+        }).catch(function(err) {
+          sendResponse({ error: err.message });
+        });
+        return true;
+      }
+
+      // ── 查询屏蔽状态 ──
+      if (message.type === "MV3_CHECK_BLOCK_STATUS") {
+        const handle = (message.handle || "").toLowerCase();
+        if (!handle) { sendResponse({ ok: false, error: "missing handle" }); return; }
+        BlockEngine.checkBlockStatus(handle).then(sendResponse);
+        return true;
+      }
+
+      // ── 查询账号是否被冻结（suspended） ──
+      if (message.type === "MV3_CHECK_SUSPENDED") {
+        const handle = (message.handle || "").toLowerCase();
+        if (!handle) { sendResponse({ ok: false, error: "missing handle" }); return; }
+        BlockEngine.checkSuspended(handle).then(sendResponse);
+        return true;
+      }
+
+      // ── 通过 DOM 模拟点击屏蔽 ──
+      if (message.type === "MV3_BLOCK_USER_VIA_API") {
+        const handle = (message.handle || "").toLowerCase();
+        if (!handle) { sendResponse({ ok: false, error: "missing handle" }); return; }
+        // 使用 .then(sendResponse) 异步返回结果（SPA 成功时能正常回调）
+        // location.href 兜底时会销毁 content script，sendResponse 不触发，
+        // 导致 sendMessage 超时，由 detected.js 的 catch 处理
+        BlockEngine.blockUser(handle).then(sendResponse);
+        return true;
+      }
+
+      // ── 批量屏蔽 ──
+      if (message.type === "MV3_BATCH_BLOCK_USERS") {
+        const handles = message.handles || [];
+        if (!Array.isArray(handles) || handles.length === 0) {
+          sendResponse({ ok: false, error: "empty handles" }); return;
+        }
+        BlockEngine.batchBlock(handles).then(sendResponse);
+        return true;
+      }
+    });
+  }
+
+  const blockedAccounts = (typeof window.BlockEngine !== "undefined" && window.BlockEngine.getBlockedAccounts) ? window.BlockEngine.getBlockedAccounts() : new Set();
+  const suggestedAccounts = new Map();
+  let scanTimer = null;
+  let currentUrl = window.location.href;
+  let mutationObserver = null;
+
+  // ── 检测当前 X/Twitter 登录用户 ──
+
+  let currentXHandle = null;
+  let currentXDisplayName = null;
+
+  function detectCurrentXUser() {
+    try {
+      // 从侧边栏用户菜单中获取
+      const profileLink = document.querySelector('a[data-testid="AppTabBar_Profile_Link"]');
+      if (profileLink) {
+        const href = profileLink.getAttribute("href") || "";
+        const parts = href.split("/").filter(Boolean);
+        if (parts.length > 0) {
+          const handle = parts[parts.length - 1].toLowerCase();
+          if (handle && !handle.includes("settings") && handle.length > 1) {
+            currentXHandle = handle;
+          }
+        }
+      }
+
+      // 尝试从导航栏获取显示名
+      if (!currentXHandle) {
+        // 从侧边栏的用户资料卡片获取
+        const userCell = document.querySelector('[data-testid="SideNav_AccountSwitcher_Button"]');
+        if (userCell) {
+          const spans = userCell.querySelectorAll("span");
+          spans.forEach((s) => {
+            const text = s.textContent || "";
+            if (text.startsWith("@") && text.length > 2) {
+              currentXHandle = text.slice(1).toLowerCase();
+            }
+          });
+        }
+      }
+
+      // 从 settings 链接反推
+      if (!currentXHandle) {
+        const settingsLink = document.querySelector('a[href*="/settings"]');
+        if (settingsLink) {
+          // settings 通常在 /settings 或 /username/settings
+          const href = settingsLink.getAttribute("href") || "";
+          const parts = href.split("/").filter((p) => p && p !== "settings");
+          if (parts.length > 0) {
+            currentXHandle = parts[parts.length - 1].toLowerCase();
+          }
+        }
+      }
+    } catch (e) {
+      // 忽略
+    }
+  }
+
+  function getCurrentXUser() {
+    return { handle: currentXHandle, displayName: currentXDisplayName };
+  }
+
+
+  function startUserDetection() {
+    detectCurrentXUser();
+    // 页面变化后重新检测（X 是 SPA）
+    const observer = new MutationObserver(() => {
+      if (!currentXHandle) {
+        detectCurrentXUser();
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+  }
+
+  function clearGarbageHiddenState() {
+    document.querySelectorAll("[data-cao-hidden]").forEach((el) => {
+      el.removeAttribute("data-cao-hidden");
+      el.classList.remove(garbageHiddenClass);
+    });
+  }
+
+  /**
+   * 判断 article 是否为回复（评论），而非独立主推文
+   * X 在每条回复上方显示 "Replying to @xxx" / "回复 @xxx" 标记
+   */
+  function isArticleAReply(article) {
+    // 在 article 内查找 "Replying to @xxx" 或 "回复 @xxx" 文本
+    const text = article.textContent || "";
+    return /replying\s+to\s+@|回复\s*@/i.test(text);
+  }
+
+
+  /** 隐藏已屏蔽账号的回复（始终生效） */
+  function hideBlockedArticles() {
+    if (!isTweetDetailPage()) return;
+    document.querySelectorAll('article').forEach((article, index) => {
+      if (index === 0) return;
+      const handle = getArticleHandle(article);
+      if (!handle) return;
+      if (getMyHandle() && handle.toLowerCase() === getMyHandle()) return;
+      if (blockedAccounts.has(handle)) {
+        article.classList.add(garbageHiddenClass);
+        article.dataset.caoHidden = "1";
+      }
+    });
+  }
+
+  function normalizeHandle(handle) {
+    return handle.replace(/^@/, "").toLowerCase();
+  }
+
+  function isTwitterHomePage() {
+    return window.location.pathname === "/home";
+  }
+
+  function isTweetDetailPage() {
+    const parts = window.location.pathname.split("/").filter(Boolean);
+    return parts.length >= 3 && parts[1] === "status" && /^[0-9]+$/.test(parts[2]);
+  }
+
+  function isProfilePage() {
+    if (isTwitterHomePage() || isTweetDetailPage()) return false;
+    const parts = window.location.pathname.split("/").filter(Boolean);
+    // 单段路径且不像其它系统路径 → profile 页
+    if (parts.length === 1 && /^[a-zA-Z0-9_]{1,30}$/.test(parts[0])) {
+      return parts[0].toLowerCase() !== "explore" && parts[0] !== "notifications" && parts[0] !== "messages" && parts[0] !== "search" && parts[0] !== "settings" && parts[0] !== "i" && parts[0] !== "jobs" && parts[0] !== "compose" && parts[0] !== "lists" && parts[0] !== "communities";
+    }
+    return false;
+  }
+
+
+
+  function handleRouteChange() {
+    if (currentUrl === window.location.href) {
+      return;
+    }
+
+    currentUrl = window.location.href;
+    window.clearTimeout(scanTimer);
+
+    if (isTweetDetailPage()) {
+      // 启动 MutationObserver
+      if (!mutationObserver) {
+        mutationObserver = new MutationObserver(scheduleScan);
+      }
+      mutationObserver.observe(document.body, {
+        childList: true,
+        subtree: true,
+      });
+
+      scanWithVectorDB().then(function() { injectReportButtons(); });
+      return;
+    }
+
+    // 进入主页
+    if (isTwitterHomePage()) {
+      // 离开详情页时断开 observer 并清除所有隐藏状态
+      if (mutationObserver) {
+        mutationObserver.disconnect();
+      }
+      // 主页也跑 Vector 扫描（发现者 + 垃圾检测）
+      clearGarbageHiddenState(); // 清除之前详情页的隐藏状态
+      mutationObserver = new MutationObserver(function() { scheduleScan(); });
+      mutationObserver.observe(document.body, { childList: true, subtree: true });
+
+      scanWithVectorDB();
+    } else if (isProfilePage()) {
+      // 进入个人主页：断开其它 observer，清除隐藏状态，显示 CAO 标识
+      if (mutationObserver) {
+        mutationObserver.disconnect();
+      }
+      clearGarbageHiddenState();
+    } else {
+      // 非主页/详情页：断开所有 observer
+      if (mutationObserver) {
+        mutationObserver.disconnect();
+      }
+      clearGarbageHiddenState();
+    }
+  }
+
+  function watchRouteChanges() {
+    const originalPushState = window.history.pushState;
+    const originalReplaceState = window.history.replaceState;
+
+    window.history.pushState = function pushState(...args) {
+      const result = originalPushState.apply(this, args);
+      window.setTimeout(handleRouteChange, 0);
+      return result;
+    };
+
+    window.history.replaceState = function replaceState(...args) {
+      const result = originalReplaceState.apply(this, args);
+      window.setTimeout(handleRouteChange, 0);
+      return result;
+    };
+
+    window.addEventListener("popstate", handleRouteChange);
+    window.addEventListener("hashchange", handleRouteChange);
+    // 用 2000ms 间隔轮询代替 500ms，大幅减少不必要的执行
+    window.setInterval(handleRouteChange, 2000);
+  }
+
+  function getProfileHandleFromUrl() {
+    const parts = window.location.pathname.split("/").filter(Boolean);
+    if (parts.length >= 1 && /^[a-zA-Z0-9_]{1,30}$/.test(parts[0])) {
+      return parts[0].toLowerCase();
+    }
+    return "";
+  }
+
+
+  function getHandleFromLink(link) {
+    const url = new URL(link.href, window.location.origin);
+    const parts = url.pathname.split("/").filter(Boolean);
+
+    if (parts.length === 0 || ignoredPaths.has(parts[0])) {
+      return "";
+    }
+
+    const handle = parts[0];
+    if (!/^[A-Za-z0-9_]{1,15}$/.test(handle)) {
+      return "";
+    }
+
+    return normalizeHandle(handle);
+  }
+
+  function getAccountContainer(link) {
+    return (
+      link.closest("article") ||
+      link.closest('[data-testid="UserCell"]') ||
+      (link.closest('[data-testid="User-Name"]') && link.closest('[data-testid="cellInnerDiv"]'))
+    );
+  }
+
+  function getArticleHandle(article) {
+    const userNameRoot = article.querySelector('[data-testid="User-Name"]');
+    if (!userNameRoot) {
+      return "";
+    }
+
+    const link = getHandleLinkFromRoot(userNameRoot);
+    return link ? getHandleFromLink(link) : "";
+  }
+
+  function getArticleDisplayName(article) {
+    try {
+      const userNameRoot = article.querySelector('[data-testid="User-Name"]');
+      if (!userNameRoot) {
+        return "";
+      }
+
+      const handleText = userNameRoot.querySelector('a[href*="/"] span')?.textContent || "";
+      // innerHTML 还原 img[alt] 中的 emoji 字符，再剥掉其余标签
+      var html = userNameRoot.innerHTML;
+      var allText = html
+        .replace(/<img[^>]*alt="([^"]*)"[^>]*>/g, "$1")
+        .replace(/<[^>]+>/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+      var withoutHandle = allText.replace(/@[A-Za-z0-9_]{1,15}.*/, "").trim();
+      return withoutHandle || handleText.trim();
+    } catch (e) {
+      return "";
+    }
+  }
+
+  /**
+   * 获取文章转发/分享数量
+   */
+  function getArticleShareCount(article) {
+    try {
+      // X 的转发数量在 a[href*="/retweets"] 中
+      var shareLink = article.querySelector('a[href*="/retweets"]');
+      if (shareLink) {
+        var text = shareLink.textContent.trim();
+        // 解析数字："12" → 12, "1.2K" → 1200, "12K" → 12000
+        var match = text.match(/^([\d.]+)(K|k|M|m)?/);
+        if (match) {
+          var num = parseFloat(match[1]);
+          var suffix = match[2];
+          if (suffix && (suffix === "K" || suffix === "k")) num *= 1000;
+          if (suffix && (suffix === "M" || suffix === "m")) num *= 1000000;
+          return Math.floor(num);
+        }
+      }
+    } catch (e) {}
+    return 0;
+  }
+
+  function extractTweetTextForRuleCheck(element) {
+    // 提取可见文本，包括 <img alt="😀"> 中的 emoji alt 文本
+    const parts = [];
+    const text = (element.textContent || "").trim();
+    if (text) parts.push(text);
+    element.querySelectorAll("img[alt]").forEach((img) => {
+      const alt = (img.getAttribute("alt") || "").trim();
+      if (alt) parts.push(alt);
+    });
+    return parts.join(" ").replace(/\s+/g, " ").trim();
+  }
+
+  function getArticleReplyText(article) {
+    // 先尝试标准 selector
+    const tweetTextElements = article.querySelectorAll('[data-testid="tweetText"]');
+    if (tweetTextElements.length > 0) {
+      return Array.from(tweetTextElements)
+        .map((element) => extractTweetTextForRuleCheck(element))
+        .filter(Boolean)
+        .join(" ")
+        .trim();
+    }
+
+    // 兜底：如果找不到 [data-testid="tweetText"]（X DOM 可能变了），
+    // 尝试其他可能的 tweet 内容容器
+    const fallbackSelectors = [
+      '[data-testid="tweet"]',
+      '[lang] div[dir="auto"]',
+      'div[data-testid*="tweet"]',
+    ];
+    for (const selector of fallbackSelectors) {
+      const elements = article.querySelectorAll(selector);
+      if (elements.length > 0) {
+        const text = Array.from(elements)
+          .map((el) => extractTweetTextForRuleCheck(el))
+          .filter(Boolean)
+          .join(" ")
+          .trim();
+        if (text) {
+          return text;
+        }
+      }
+    }
+    // 最后兜底：直接从 article 取所有文本
+    const allText = (article.textContent || "").replace(/\s+/g, " ").trim();
+    if (allText) return allText;
+    return "";
+  }
+
+  function saveSuggestedToStorage() {
+    // 用当前 session 最近一次检测到的账号覆盖 storage（不留旧数据）
+    const obj = {};
+    suggestedAccounts.forEach((acct, handle) => { obj[handle.toLowerCase()] = acct; });
+    chrome.storage.local.set({ [detectedAccountsStorageKey]: obj }).catch(() => {});
+  }
+
+  /** 获取 article 中的头像 URL */
+  function getArticleAvatar(article) {
+    try {
+      var img = article.querySelector('img[src*="twimg.com"][src*="_normal"]');
+      if (img) return img.src.replace("_normal.", "_bigger.");
+      img = article.querySelector('img[src*="twimg.com"]');
+      if (img) return img.src;
+    } catch (e) {}
+    return "";
+  }
+
+  /** 浮动按钮图标（全局定义，供 triggerFloaterBreath 使用） */
+  var blackIconData = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAACcklEQVR4nO3Xu2tUQRTH8c+92U02MYiFjRaiFhJ8gAhaW2ilCBb+DWIjNjY2YiWI2PgfaKWF2KggohFECy0EUSwUBB9oJYKRPPdazAw7+/CxyTWVB4a7zNw7v++cM2fObCFYCzuwHruxiCbe4cWk1svvZqFEW812Hh8xj2pA+4EHOBDfL+sG2InpKLbY09oZSBsH4zfNuiFaeBaFlvR7YS4+768tx9M3I3WJN+JzCt8iQL7y1FL/I+z7VxAnotj8AIi2EJbkkWO1Q4yGua5GkQWdfZCEE1zyyOE/QJRxrJG1kdhf9L5cxIEJXNEfghl8yOAqfMaG+G0+4d9mStlLUaBqaZi1eBSnsDUKn8MrIWO2CJ4YxcWS0+2wsqUo3l5jzIy5KWzHJsGLI3gppP3ruIg+S54wYRQm1xjLx/fqDs9nrOtZ+V489OuzZQ5vcPx37hnR79ZGI3Rd070f9mfw2/BVd/Ys9LQKd7D5dwDJcogEdSRbSRtns/cuZWODUrnCUyF8Q1sS2SisMk14AyaLMbinP3PyNJ7FnjhPSv+hAUbxNpv8OsZwM0INOk1TuC4sVzwHGNdJyUrY2Xd13JzXkqVM/Ckm9e+voQAKwQPPdcc1FbNBx3iFJ0L6ssKKWsZ2OxNNIAnmsrDLP+ExTgoFb8XiyW0tvM+E2zrpdaaJ8SKeIUXXGbLiu0QO8E53zCtcaAaNpsHpu2IbBJBWPq1TbIqe92uzX3lgBrvi2FDluY77XYkvQnEpDHlpreuCWQruH1jdVgPAcsTrBliW/Qf4D7CsmhwtVb30e9UBJnROxonVAqiEsM0LF9NDsf9W7Bv67/tPyfTpZUC5YpgAAAAASUVORK5CYII=";
+  var greenIconData = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAFtElEQVR4nO2XfWyV5RnGr+t53vftOaenxxYpH8XVbzhCgJKikehs69wHCUaT7TS6MRZjIiPMxS0ZJJL4cnSyRUyWbMsyMfy1GPEcN4y6JYqmuDA2Ym2m2I4omiKlBVZKz9n5fD+e2z/6YaFh2lL/8/7rTd4nz/17ruu5r7wvAUBEIkdKx1b0jfbPP14ealFkEMLY81Vd//eavn50Rc21vQVUAHEVmDaYw+Kuj/f96o18z6Z8pdgYaGNX7BAEIADsUCEqdrk5tvDI+tqWJx+8esMbrrgqPYcQ1gKr9jmC685ECk38XxBqT0EAEEDZiBpVEh1SufYT/tm2353487cf5ncPPNT9jL1n7WZ/LgAIjFmw4ehjh973TrRaFRgh1AULQM+PwrnFuqHr9ZZdd+ZNGalMSmc7s+HlAii3y7VIVh5dnNrYpOflPR2CAplYIAAE4uiSMe+WPm6/873th14ZOnxLtjMbpiSjLxeAANDW5VpvdaSDHR/s3bK/+vYfirmCb1FZMiHA2EIRwAQR6EWq3vtOfO3Gx2/clE1JRmfZOWslJhugq81yOg4FnUef/NNhfXxjMFIObFqEiAJpQhotCrAC+lUV2o3RenNf4vZ7tl9//6uXssMVUX3I8uzB3sk+W9tXSC9SshMQkjL5QkTInaTslMiP/rP7j/8OT/ww5xVgvBCIalxZiZVqdc35kxxZ4lQQVGxjXW8vOvPXpdvWxGsXnBYISMpY4y84Ka6rrEkpSBERkCxFYG36zSf797+W73kkrwrX1UcSA7fNW55+YH5H393HfnlwwBm+1vGUdyo2unDbwL6fqyR+0Znp1ABC1x1rXosavF8ZSL44dHD5ubDQrEQCIfQ1kcW97YnkqaV11xwjaXgx1IQSSMPE4KAo1XickUIRVQDAgcGem7cP7T18rpKnKFHX2QvPdrU+nSQ56oqoNGn+NviPm/eOvPn0QHV4XVn7tmcZjIktiAQWbJ9eY6zh5H3z2nariwFICtIwKcnoEjySLBRRhSuuautqs9Y3tb6ddJb8RdXamoEEOV1ZuO/0wRYASAPy91zf0qfOvvT6Ef/4HYPlYTtXyJtKrhSU88Wgki8F54qjwZCdd6q+9+FV0StfmwYwUeM3W0TG7kmaabO1fasEIrw9sfK5OhWFAFLSvvwz19smIgQpzw+++eOT1vl6uwjPoQVNrRRoKdBSAsWIZa1ic/eBll/f09Gwpv+SABcoMl4ppAwI2dK8oTvhOaNQsLzQ57CfX01S4qzBf4Pzq4KqL1TQMnUfQHwl0qjqqj9punczSc/tcq3PBbhEDUeVPQJNRRIAAxGp+dZ7O156t9zfoSpGILggpIxI4FwR1etiy367fsHanrYu10p3pINpl/D/lYhwfFqid/Vs+/ADb2iJ1hqLWd/X5DScekd98k3mfDOmGkERBUBCMWGY0PYq+Vr3q6uf6GC2syypjCEp1ud2nUYBAggdZQ/T4hLtiTmNkeVDcn658hEKoFhrqzAMEfohaCnGInG1VBb866mrtnyfZMEVV01YOyMAkgKBAhDEdXRQQa8WzwhBKA8mpKFTU8Pb7Jt+n2PxhlFdXB23ov1r4jfu23n1D/aQrFwcUjMCGLfAQBAZ8fMrwyCAhiIACZWYmmjU+kZs5Y5nl/10l0UHJVONx1Wk8LJUkcZGTITU1D1nbsFnakxmfyhinETUukMndz+77JFd/jOttr/5nYBkAQBSktEZpAzJafE82ymYimIQ0zoZLnprz00/e9TPGC0PdQeYkiFZdoZTx3nOAAgiQKgaUVd6rPn+h0kGGWQms+NSTafWrC0AAAggmqpBYmdaG5LHxk88o+/FObAAMBQFwPoiJ/5SAMZrxs3nGmBW9RXAVwCXkQM0mPyBmR6xXzpAKGFMHHLiebb7zMgCkgIXCoB3ayL5Qp1EPqqTyEe3JpIvAPDgQs00jD4FVeOt88F1WDsAAAAASUVORK5CYII=";
+
+  /** 浮动按钮触发呼吸动画 + 闪绿（防抖：清除已有 timer，避免累积） */
+  var breathTimer = null;
+  function triggerFloaterBreath() {
+    var el = document.getElementById("cao-floater");
+    if (!el) return;
+    if (breathTimer) clearTimeout(breathTimer);
+    el.classList.remove("ca-breathe");
+    void el.offsetWidth;
+    el.classList.add("ca-breathe");
+    var img = el.querySelector("img");
+    if (img) img.src = greenIconData;
+    breathTimer = setTimeout(function() {
+      var img2 = el.querySelector("img");
+      if (img2) img2.src = blackIconData;
+      breathTimer = null;
+    }, 2500);
+  }
+
+  /** 记录屏蔽历史（重试机制，避免 Extension context invalidated 等临时错误导致记录丢失） */
+  async function saveBlockHistory(handle, name, avatar, replyText, retries) {
+    if (retries === undefined) retries = 2;
+    for (var attempt = 0; attempt <= retries; attempt++) {
+      try {
+        var tweetUrl = window.location.href;
+        const d = await chrome.storage.local.get(blockHistoryKey);
+        let list = d[blockHistoryKey] || [];
+        list.unshift({ handle: handle.toLowerCase(), name: name || handle, avatar: avatar || "", replyText: replyText || "", tweetUrl: tweetUrl, blockedAt: Date.now() });
+        if (list.length > MAX_BLOCK_HISTORY) list = list.slice(0, MAX_BLOCK_HISTORY);
+        await chrome.storage.local.set({ [blockHistoryKey]: list });
+        if (!tweetBlockList.some(function(e) { return e.handle === handle; })) {
+          tweetBlockList.push({ handle: handle, displayName: name || handle, avatar: avatar || "", replyText: replyText || "", confirmed: true });
+        }
+        refreshStatusBar();
+        triggerFloaterBreath();
+        return;
+      } catch (e) {
+        if (attempt >= retries) {
+          console.warn("[CAO] saveBlockHistory failed after " + (retries + 1) + " attempts:", e);
+        } else {
+          await new Promise(function(r) { setTimeout(r, 200 * (attempt + 1)); });
+        }
+      }
+    }
+  }
+
+  function isUserNameTextLink(link, handle) {
+    const text = link.textContent.trim().toLowerCase();
+    return text.includes(`@${handle}`) || Boolean(link.closest('[data-testid="User-Name"]'));
+  }
+
+  function getHandleLinkFromRoot(root) {
+    const links = Array.from(root.querySelectorAll("a[href]"));
+    return links.find((link) => {
+      const handle = getHandleFromLink(link);
+      return handle && isUserNameTextLink(link, handle);
+    });
+  }
+
+  var tweetBlockList = []; // { handle, displayName, avatar, replyText, confirmed }
+
+  function hideBlockedAccounts() {
+    if (!isTweetDetailPage()) {
+      return;
+    }
+
+    document.querySelectorAll("a[href]").forEach((link) => {
+      const handle = getHandleFromLink(link);
+      if (!handle || !blockedAccounts.has(handle)) {
+        return;
+      }
+
+      const container = getAccountContainer(link);
+      if (container) {
+        container.classList.add("mv3-twitter-blocked-account");
+      }
+    });
+  }
+
+  function hideBlockedAccountsSoon() {
+    hideBlockedAccounts();
+    window.setTimeout(hideBlockedAccounts, 100);
+  }
+
+  /**
+   * 在账号主页上自动执行屏蔽操作（「更多 → 屏蔽 → 确认」）
+   * 由 block.js 通过 chrome.tabs.sendMessage 触发
+   * 检测到冻结账号主动返回 suspended: true
+   */
+  /**
+   * 注入 <script> 到 page context 执行 fetch，通过 postMessage 回传结果
+   */
+
+  const trainBtnClass = "mv3-train-btn";
+
+  /** 上报并屏蔽：屏蔽账号 + 发推报告 + 存本地记录 */
+  async function reportAndBlock(article, handle, replyText, displayName, matchedKeyword, matchedRedirect, score) {
+    // 1. 屏蔽
+    var blockResult = await blockArticleUser(article);
+    if (blockResult && (blockResult.ok || blockResult.alreadyBlocked)) {
+      blockedAccounts.add(handle);
+      try {
+        var d = await chrome.storage.local.get({ [storageKey]: [] });
+        var list = d[storageKey] || [];
+        if (!list.includes(handle)) { list.push(handle); await chrome.storage.local.set({ [storageKey]: list.sort() }); }
+      } catch (e) {}
+      await saveBlockHistory(handle, displayName, getArticleAvatar(article), replyText);
+      hideBlockedAccountsSoon();
+    } else {
+      return { ok: false, error: (blockResult && blockResult.error) || "屏蔽失败" };
+    }
+
+    // 2. 发推上报（回复到收集贴评论区）
+    var REPORT_TWEET_ID = "2069432891864690876";
+    var tweetText = "垃圾账号 @" + handle;
+    try {
+      var csrf = (document.cookie.match(/\bct0=([^;]+)/) || [])[1] || "";
+      var resp = await fetch("https://x.com/i/api/1.1/statuses/update.json", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "x-csrf-token": csrf,
+          "x-twitter-active-user": "yes",
+          "x-twitter-auth-type": "OAuth2Session",
+          "authorization": "Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA",
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        body: "status=" + encodeURIComponent(tweetText) + "&in_reply_to_status_id=" + REPORT_TWEET_ID
+      });
+      if (!resp.ok) {
+        // fallback: 打开预填发推
+        window.open("https://x.com/intent/post?text=" + encodeURIComponent(tweetText), "_blank");
+      }
+    } catch (e) {
+      window.open("https://x.com/intent/post?text=" + encodeURIComponent(tweetText), "_blank");
+    }
+
+    // 3. 隐藏
+    article.classList.add(garbageHiddenClass);
+    article.dataset.caoHidden = "1";
+    return { ok: true };
+  }
+
+  function injectReportButtons() {
+    if (!isTweetDetailPage()) return;
+    var myHandle = getMyHandle();
+    document.querySelectorAll('article').forEach(function(article, index) {
+      if (index === 0) return; // 跳过主推文
+      var userNameRoot = article.querySelector('[data-testid="User-Name"]');
+      if (!userNameRoot || userNameRoot.querySelector("." + trainBtnClass)) return;
+      var handle = getArticleHandle(article);
+      if (!handle) return;
+      if (myHandle && handle.toLowerCase() === myHandle) return;
+      // 跳过已隐藏的（已处理过的）
+      if (article.classList.contains(garbageHiddenClass)) return;
+      // 只给被标记为垃圾的回复加上报按钮
+      if (!article.classList.contains("flagged-spam")) return;
+      var btn = document.createElement("button");
+      btn.className = trainBtnClass;
+      btn.type = "button";
+      btn.textContent = "上报";
+      btn.title = "屏蔽此账号并 @fuckxegg2 上报（用于系统未检测到的垃圾）";
+      btn.addEventListener("click", async function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        btn.disabled = true;
+        btn.textContent = "…";
+        var replyText = getArticleReplyText(article) || "";
+        var displayName = getArticleDisplayName(article);
+        var result = await reportAndBlock(article, handle, replyText, displayName, null, null, 0);
+        if (result.ok) {
+          btn.textContent = "✓";
+        } else {
+          btn.textContent = "✗";
+          btn.title = result.error;
+          btn.disabled = false;
+        }
+      });
+      userNameRoot.appendChild(btn);
+    });
+  }
+
+  async function scheduleScan() {
+    if (!isTweetDetailPage()) return;
+    window.clearTimeout(scanTimer);
+    scanTimer = window.setTimeout(async function() {
+      await scanWithVectorDB().catch(function(e) {
+         console.warn("[CAO] initial scan error:", e);
+       });
+      injectReportButtons();
+    }, 500);
+  }
+
+  // init: 从 storage 加载已屏蔽列表
+  chrome.storage.local.get({ [storageKey]: [] }).then(async (data) => {
+    (data[storageKey] || []).forEach((handle) => blockedAccounts.add(normalizeHandle(handle)));
+
+    // 监听 storage 变化，同步 blockedAccounts（block-engine 解除屏蔽后同步）
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area !== "local") return;
+      const change = changes[storageKey];
+      if (change) {
+        blockedAccounts.clear();
+        (change.newValue || []).forEach(h => blockedAccounts.add(normalizeHandle(h)));
+        hideBlockedAccountsSoon();
+        injectReportButtons();
+      }
+    });
+
+    watchRouteChanges();
+    // 首次加载：仅在推文详情页才创建并启动 observer
+    if (isTweetDetailPage()) {
+      mutationObserver = new MutationObserver(function() { scheduleScan(); });
+      mutationObserver.observe(document.body, {
+        childList: true,
+        subtree: true,
+      });
+      scanWithVectorDB();
+    }
+
+    // 监听 BlockEngine 的 blockedAccounts 变化 → 触发隐藏更新
+    if (typeof window.BlockEngine !== "undefined") {
+      BlockEngine.onChanged = function () { hideBlockedAccountsSoon(); };
+    }
+
+    hideBlockedArticles();
+
+    // ── 创建浮动按钮 ──
+    (function() {
+      if (document.getElementById("cao-floater")) return;
+      var floater = document.createElement("div");
+      floater.id = "cao-floater";
+      floater.title = "CAO 屏蔽管理";
+      floater.innerHTML = '<img src="' + blackIconData + '" alt="CAO">';
+      var blockUrl = "";
+      try { blockUrl = chrome.runtime.getURL("block.html"); } catch (e) {}
+      floater.addEventListener("click", function() {
+        if (blockUrl) window.open(blockUrl, "_blank");
+      });
+      document.body.appendChild(floater);
+    })();
+  }).catch(function(e) {
+    console.warn("[CAO] init chain error:", e);
+  });
+
+  // 切换账号时仍需尝试
+  watchAccountSwitch();
+
+  // ── 内联屏蔽：在当前推文详情页直接屏蔽（twitter-helper 方案）──
+
+  let inlineBlockBusy = false;
+
+  function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+  async function waitForSelector(sel, timeout) {
+    const start = Date.now();
+    while (Date.now() - start < timeout) {
+      const el = document.querySelector(sel);
+      if (el) return el;
+      await sleep(200);
+    }
+    return null;
+  }
+
+  /** 在当前页面屏蔽一个 article 中的用户（参照 twitter-helper 已验证模式） */
+  async function blockArticleUser(article) {
+    // 找「更多」按钮（⋯），只在 article 内查找
+    const moreBtn = article.querySelector('button[data-testid="caret"]')
+                || article.querySelector('button[data-testid="userActions"]');
+    if (!moreBtn) return { ok: false, error: "no caret" };
+
+    // 先点击「更多」
+    moreBtn.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await sleep(100);
+
+    // 找「屏蔽」菜单项 (全局，菜单是挂在 body 上的)
+    let blockItem = document.querySelector('div[role="menuitem"][data-testid="block"]');
+    if (!blockItem) {
+      // 可能已经屏蔽过，找「解除屏蔽」
+      const unblockItem = document.querySelector('div[role="menuitem"][data-testid="unblock"]');
+      if (unblockItem) { document.body.click(); return { ok: true, alreadyBlocked: true }; }
+      // 兜底：用 span 文本找「屏蔽 @xxx」
+      const allMenuItems = document.querySelectorAll('div[role="menuitem"]');
+      for (const mi of allMenuItems) {
+        if (mi.textContent.includes('屏蔽')) {
+          blockItem = mi;
+          break;
+        }
+      }
+      if (!blockItem) return { ok: false, error: "no block item" };
+    }
+    blockItem.click();
+    await sleep(100);
+
+    // 找确认按钮
+    const confirmBtn = document.querySelector('button[data-testid="confirmationSheetConfirm"]');
+    if (!confirmBtn) {
+      // 有些 X 版本不需要确认就屏蔽了，算成功
+      return { ok: true, noConfirm: true };
+    }
+    confirmBtn.click();
+    await sleep(200);
+
+    return { ok: true };
+  }
+
+  /** 主入口：传入 handle 列表，在当前页面逐个屏蔽（DOM 点击方式） */
+  async function inlineBlockUsers(handles) {
+    if (!handles.length || inlineBlockBusy) return false;
+    inlineBlockBusy = true;
+    let anyOk = false;
+    try {
+      for (const handle of handles) {
+        if (blockedAccounts.has(handle)) { anyOk = true; continue; }
+        // 通过 handle 找到 article，用 DOM 点击方式屏蔽
+        const article = findArticleByHandle(handle);
+        if (!article) continue;
+        const result = await blockArticleUser(article);
+        if (result && (result.ok || result.alreadyBlocked)) {
+          anyOk = true;
+          blockedAccounts.add(handle);
+          try {
+            const d = await chrome.storage.local.get({ [storageKey]: [] });
+            const list = d[storageKey] || [];
+            if (!list.includes(handle)) {
+              list.push(handle);
+              await chrome.storage.local.set({ [storageKey]: list.sort() });
+            }
+          } catch (e) {}
+          await saveBlockHistory(handle, getArticleDisplayName(article), getArticleAvatar(article), getArticleReplyText(article));
+        }
+        await sleep(500);
+      }
+      hideBlockedAccountsSoon();
+      return anyOk;
+    } finally {
+      inlineBlockBusy = false;
+    }
+  }
+
+  function findArticleByHandle(handle) {
+    const articles = document.querySelectorAll('article');
+    for (const article of articles) {
+      const h = getArticleHandle(article);
+      if (h && h.toLowerCase() === handle.toLowerCase()) return article;
+    }
+    return null;
+  }
+
+  // ── 向量库 spam 检测（complementary to rule-based system）──
+
+  let vectorScanQueued = false;
+  let vectorScanRunning = false;
+
+  /** 判断 article 对应的账号是否有认证标识（蓝V/金V/灰V） */
+  function isVerifiedAccount(article) {
+    return !!article.querySelector(
+      '[data-testid="icon-verified"], [data-testid="icon-verified-2"], [aria-label*="Verified"], svg[aria-label*="Verified"]'
+    );
+  }
+
+  /** 从 DOM 获取当前登录用户自己的 handle（每次调用都重新读 DOM，不缓存） */
+  function getMyHandle() {
+    try {
+      // 方案1：侧边栏用户菜单（最可靠，任何页面都有）
+      var userCell = document.querySelector('[data-testid="SideNav_AccountSwitcher_Button"]');
+      if (userCell) {
+        var text = userCell.textContent || "";
+        var match = text.match(/@(\w+)/);
+        if (match) return match[1].toLowerCase();
+      }
+      // 方案2：左侧导航 Profile 链接
+      var link = document.querySelector('a[data-testid="AppTabBar_Profile_Link"]')
+              || document.querySelector('a[data-testid="AppTabBar-Profile"]');
+      if (link) {
+        var href = link.getAttribute("href") || "";
+        if (href && href !== "/") return href.replace(/^\//, "").toLowerCase();
+      }
+    } catch(e) {}
+    return "";
+  }
+  /** 从当前页面 URL 提取推文作者 handle（如 x.com/user/status/... → user） */
+  function getPageTweetAuthorHandle() {
+    var m = location.pathname.match(/^\/(\w+)\/status\//);
+    return m ? m[1].toLowerCase() : null;
+  }
+
+  /** 批量获取多个账号的 profile bio（通过 X API 获取，更可靠） */
+  var bioCache = {};
+  var bioFetchSuccess = {}; // 标记 bio 是否成功获取
+  function batchGetProfileBio(handles) {
+    var unique = {};
+    handles.forEach(function(h) { if (h && !bioCache[h]) unique[h] = true; });
+    var uniqueList = Object.keys(unique);
+    if (uniqueList.length === 0) return Promise.resolve();
+    var concurrency = 3;
+    var index = 0;
+    function next() {
+      if (index >= uniqueList.length) return Promise.resolve();
+      var handle = uniqueList[index++];
+      return new Promise(function(resolve) {
+        var controller = new AbortController();
+        var timeout = setTimeout(function() { controller.abort(); bioCache[handle] = ""; resolve(); }, 8000);
+        var csrf = (document.cookie.match(/\bct0=([^;]+)/) || [])[1] || "";
+        fetch("https://x.com/i/api/1.1/users/show.json?screen_name=" + encodeURIComponent(handle), {
+          credentials: "include",
+          signal: controller.signal,
+          headers: {
+            "x-csrf-token": csrf,
+            "x-twitter-active-user": "yes",
+            "x-twitter-auth-type": "OAuth2Session",
+            "authorization": "Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA"
+          }
+        }).then(function(resp) {
+          clearTimeout(timeout);
+          if (!resp.ok) { bioCache[handle] = ""; resolve(); return; }
+          resp.json().then(function(data) {
+            bioCache[handle] = data.description || "";
+            resolve();
+          }).catch(function() { bioCache[handle] = ""; resolve(); });
+        }).catch(function() { clearTimeout(timeout); bioCache[handle] = ""; resolve(); });
+      }).then(next);
+    }
+    var workers = [];
+    for (var i = 0; i < Math.min(concurrency, uniqueList.length); i++) {
+      workers.push(next());
+    }
+    return Promise.all(workers);
+  }
+
+  /** 从 HTML 中提取 profile bio（meta description） */
+  function extractBioFromHtml(html) {
+    var match = html.match(/<meta\s+name="description"\s+content="([^"]+)"/i);
+    if (match) {
+      var desc = match[1];
+      desc = desc.replace(/^@\w+'s\s+profile\s*[-–—]\s*/i, "");
+      return desc;
+    }
+    return "";
+  }
+
+  // 加载自动屏蔽设置
+  (async function() {
+    try {
+      const data = await chrome.storage.local.get("mv3AutoBlock");
+      autoBlockEnabled = data.mv3AutoBlock !== false;
+    } catch (e) {}
+  })();
+
+  /** 等待 SpamEngine 就绪后，扫描当前页面所有回复文本进行特征检测 */
+  var scanDebounceTimer = null;
+  var scanPageUrl = "";
+  async function scanWithVectorDB() {
+    if (vectorScanRunning) return;
+    vectorScanRunning = true;
+    try {
+      if (typeof window.SpamEngine === "undefined" || !window.SpamEngine.ready()) {
+        if (!vectorScanQueued) {
+          vectorScanQueued = true;
+          window.SpamEngine?.onReady(() => { vectorScanQueued = false; scanWithVectorDB(); });
+        }
+        return;
+      }
+      // 每次扫描前强制加载自定义关键词
+      await window.SpamEngine.loadCustomKeywords(1);
+
+      // 切换页面时重置计数和当前推文屏蔽列表
+      var currentUrl = window.location.href;
+      if (scanPageUrl !== currentUrl) {
+        tweetBlockList = [];
+        scanPageUrl = currentUrl;
+      }
+
+      const allArticles = document.querySelectorAll('article');
+      // 当前用户 handle（直接读 DOM，不轮询）
+      const myHandle = getMyHandle();
+      const pageAuthorHandle = getPageTweetAuthorHandle();
+
+      // ── 第一遍：检测 + 隐藏，收集需要 bio 确认的 handle ──
+      var pendingBio = {}; // handle → { article, displayName, replyText, featureResult }
+      for (const article of allArticles) {
+        const handle = getArticleHandle(article);
+        if (!handle || suggestedAccounts.has(handle) || article.classList.contains("flagged-spam") || (myHandle && handle.toLowerCase() === myHandle) || (pageAuthorHandle && handle.toLowerCase() === pageAuthorHandle)) continue;
+        const replyText = (getArticleReplyText(article) || "").replace(/[\u200B-\u200D\uFEFF\u2028\u2029\u00AD\u2060]/g, "");
+
+        try {
+          const displayName = getArticleDisplayName(article);
+          const accountResult = window.SpamEngine.detectAccount(displayName, replyText, handle, pageAuthorHandle);
+          if (!accountResult.isScam && !accountResult.matchedCustom) continue;
+
+          accountResult.confirmed = !accountResult.needsBioCheck;
+          article.classList.add("flagged-spam");
+          injectFeatureBadge(article, handle, accountResult);
+          // 仅推文详情页才执行隐藏，主页（无上下文）只标记不隐藏
+          if (isTweetDetailPage()) {
+            hideArticle(article, accountResult.confirmed);
+          }
+
+          // 需要 bio 确认的，加入批次
+          if (accountResult.needsBioCheck) {
+            pendingBio[handle] = { article: article, displayName: displayName, replyText: replyText, featureResult: accountResult };
+          } else {
+             // 不需要 bio 确认 → 直接记录 + 屏蔽
+             await saveBlockHistory(handle, displayName, getArticleAvatar(article), replyText);
+             await autoBlockAndHide(article, handle);
+           }
+        } catch (e) {
+          console.warn("[CAO] scan error for", handle || "?", e);
+        }
+      }
+
+      // ── 第二遍：批量拉 bio（并发） ──
+      var bioHandles = [];
+      Object.keys(pendingBio).forEach(function(h) {
+        bioHandles.push(h);
+        var p = pendingBio[h];
+        if (p.featureResult.mentionedHandle) bioHandles.push(p.featureResult.mentionedHandle);
+      });
+      if (bioHandles.length > 0) {
+        console.log("[CAO] batch fetching", bioHandles.length, "bios");
+        await batchGetProfileBio(bioHandles);
+      }
+
+      // ── 第三遍：bio 结果处理 ──
+       var confirmTasks = [];
+       Object.keys(pendingBio).forEach(function(handle) {
+         var p = pendingBio[handle];
+         var bioText = bioCache[handle] || "";
+         var confirmed = (bioText && window.SpamEngine.detectBio(bioText));
+         if (!confirmed && p.featureResult.mentionedHandle) {
+           var mentionedBio = bioCache[p.featureResult.mentionedHandle] || "";
+           if (mentionedBio && window.SpamEngine.detectBio(mentionedBio)) {
+             p.featureResult.features.push({ k: "资料确认(@)", v: p.featureResult.mentionedHandle, p: -3 });
+             p.featureResult.score -= 3;
+             confirmed = true;
+           }
+         }
+         // fallback: bio 拉取失败但维度分足够低（≤ -5）→ 仍然确认（不因为拉取失败而放过）
+         if (!confirmed && p.featureResult.score <= -5) {
+           confirmed = true;
+         }
+         // 自定义关键词命中：有 bio 或引用了第三方 handle 就确认
+            if (!confirmed && p.featureResult.matchedCustom && (bioText || p.featureResult.mentionedHandle)) {
+            confirmed = true;
+         }
+         if (confirmed) {
+           if (bioText) {
+             p.featureResult.features.push({ k: "资料确认(本人)", v: (bioText.length > 20 ? bioText.slice(0,20) + "…" : bioText), p: -3 });
+           }
+           // 自定义关键词命中：bio 确认后额外 -1
+           if (p.featureResult.matchedCustom) {
+             p.featureResult.features.push({ k: "自定义关键词+资料确认", v: "", p: -1 });
+             p.featureResult.score -= 1;
+           }
+           p.featureResult.confirmed = true;
+           confirmTasks.push({ handle: handle, data: p });
+         }
+       });
+
+       // ── 第四遍：记录 + 屏蔽 ──
+       for (var i = 0; i < confirmTasks.length; i++) {
+         var t = confirmTasks[i];
+         await saveBlockHistory(t.handle, t.data.displayName, getArticleAvatar(t.data.article), t.data.replyText);
+          await autoBlockAndHide(t.data.article, t.handle);
+       }
+    } finally {
+      vectorScanRunning = false;
+    }
+  }
+
+  /** 隐藏某个回复（疑似但未确认时使用，添加垃圾隐藏类） */
+  function hideArticle(article, confirmed) {
+    if (!article || article.classList.contains(garbageHiddenClass)) return;
+    article.classList.add(garbageHiddenClass);
+    if (confirmed) article.classList.add(garbageConfirmedClass);
+    refreshStatusBar();
+    // 在回复上打标签标记
+    try {
+      var badge = document.createElement("span");
+      badge.className = "mv3-feature-badge";
+      badge.textContent = confirmed ? "🔒 已屏蔽" : "⚠ 疑似";
+      badge.style.cssText = [
+        "display:inline-block",
+        "font:600 10px/1.2 Arial,sans-serif",
+        "color:#6b7280",
+        "background:#f3f4f6",
+        "border:1px solid #e5e7eb",
+        "border-radius:3px",
+        "padding:1px 4px",
+        "margin-left:4px",
+      ].join(";");
+      var nameEl = article.querySelector('[data-testid="User-Name"]');
+      if (nameEl) nameEl.appendChild(badge);
+    } catch(e) {}
+  }
+
+  /** 悬浮按钮：点击打开当前推文屏蔽列表 */
+  function refreshStatusBar() {
+    try {
+      var el = document.getElementById("cao-status-bar");
+      if (!el) {
+        el = document.createElement("div");
+        el.id = "cao-status-bar";
+        el.style.cssText = "position:fixed;bottom:12px;right:12px;z-index:9999;background:#1d1d1d;color:#fff;border-radius:8px;padding:8px 14px;font:13px/1.4 Arial,sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.3);display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none";
+        el.addEventListener("click", showBlockDetailPanel);
+        document.body.appendChild(el);
+      }
+      var count = tweetBlockList.length;
+      el.style.display = "flex";
+      el.innerHTML = count > 0 ? "🔒 已屏蔽 " + count + " <span style='opacity:.6'>[查看详情]</span>" : "▎ 0 <span style='opacity:.4'>[查看详情]</span>";
+    } catch(e) {}
+  }
+
+  /** 自动屏蔽账号并隐藏回复 */
+  async function autoBlockAndHide(article, handle) {
+    if (!autoBlockEnabled) return;
+    // 安全兜底：防止对自己执行屏蔽
+    if (handle) {
+      var h = handle.toLowerCase();
+      var myH = getMyHandle();
+      var pageAuthor = getPageTweetAuthorHandle();
+      if ((myH && h === myH) || (pageAuthor && h === pageAuthor)) return;
+    }
+    const blockResult = await blockArticleUser(article);
+    if (blockResult && (blockResult.ok || blockResult.alreadyBlocked)) {
+      blockedAccounts.add(handle);
+      try {
+        const d = await chrome.storage.local.get({ [storageKey]: [] });
+        const list = d[storageKey] || [];
+        if (!list.includes(handle)) {
+          list.push(handle);
+          await chrome.storage.local.set({ [storageKey]: list.sort() });
+        }
+      } catch (e) {}
+      // 屏蔽成功后直接隐藏该回复
+      article.classList.add(garbageHiddenClass);
+      article.dataset.caoHidden = "1";
+      hideBlockedAccountsSoon();
+    }
+  }
+
+  /** 打开自动屏蔽后，重新屏蔽所有已标记但尚未隐藏的账号 */
+  function processPendingAutoBlocks() {
+    const allArticles = document.querySelectorAll('article.flagged-spam');
+    for (const article of allArticles) {
+      const handle = getArticleHandle(article);
+      if (!handle || blockedAccounts.has(handle)) continue;
+      autoBlockAndHide(article, handle);
+    }
+  }
+
+  /** 在指定的 article 中注入特征标签（无屏蔽按钮） */
+  function injectFeatureBadge(article, handle, featureResult) {
+    const userNameRoot = article.querySelector('[data-testid="User-Name"]');
+    if (!userNameRoot) return;
+
+    let featureLabel = null;
+    if (featureResult) {
+      const txt = featureResult.features?.[0]?.v || featureResult.features?.[0]?.k || "";
+      featureLabel = `🔑 ${txt.length > 16 ? txt.slice(0, 16) + "…" : txt}`;
+    }
+
+    // 特征信息提示（只显示 badge，无屏蔽按钮）
+    if (featureLabel) {
+      // 避免重复注入
+      if (userNameRoot.querySelector(".mv3-feature-badge")) return;
+      const h = document.createElement("span");
+      h.className = "mv3-feature-badge";
+      h.textContent = featureLabel;
+      h.style.cssText = [
+        "display:inline-block",
+        "font:600 10px/1.2 Arial,sans-serif",
+        "color:#92400e",
+        "background:#fef3c7",
+        "border:1px solid #fde68a",
+        "border-radius:3px",
+        "padding:1px 4px",
+        "max-width:160px",
+        "overflow:hidden",
+        "text-overflow:ellipsis",
+        "white-space:nowrap",
+        "vertical-align:middle",
+        "margin-left:3px",
+      ].join(";");
+      h.title = `命中特征: ${featureResult.matchedKeyword || featureResult.matchedRedirect || featureResult.features.map(function(f){return f.k+":"+f.v}).join(", ")}`;
+      userNameRoot.appendChild(h);
+    }
+  }
+
+  // 当 SpamEngine 就绪时，自动触发一次扫描
+  if (typeof window.SpamEngine !== "undefined") {
+    window.SpamEngine.onReady(() => {
+      if (isTweetDetailPage()) scanWithVectorDB();
+    });
+  }
+
+  // ── 消息处理器 ──
+  if (typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.onMessage) {
+    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+      if (!message) return;
+
+      // block.html 通知重新加载关键词
+      if (message.type === "MV3_RELOAD_KEYWORDS") {
+        if (message.keywords || message.redirect) {
+          window.SpamEngine?.setCustomKeywords(message.keywords || [], message.redirect || []);
+          sendResponse({ ok: true });
+        } else {
+          window.SpamEngine?.loadCustomKeywords().then(() => sendResponse({ ok: true }));
+        }
+        return true;
+      }
+
+      // block.html 切换自动屏蔽
+      if (message.type === "MV3_AUTO_BLOCK_TOGGLE") {
+        autoBlockEnabled = !!message.enabled;
+        if (autoBlockEnabled) {
+          // 打开自动屏蔽后，重新处理已标记 flagged-spam 但尚未屏蔽的账号
+          processPendingAutoBlocks();
+        }
+        sendResponse({ ok: true });
+        return true;
+      }
+
+      // 获取屏蔽历史
+      if (message.type === "MV3_GET_BLOCK_HISTORY") {
+        chrome.storage.local.get(blockHistoryKey).then(function(d) {
+          var list = d[blockHistoryKey] || [];
+          sendResponse({ ok: true, list: list });
+        }).catch(function(err) {
+          sendResponse({ ok: false, error: err.message });
+        });
+        return true;
+      }
+
+      // block.html 解除屏蔽：从 blockedAccounts 移除
+      if (message.type === "MV3_UNBLOCK") {
+        blockedAccounts.delete(normalizeHandle(message.handle));
+        // 同时从持久存储 mv3BlockedTwitterAccounts 中移除，避免页面刷新后重新加载
+        chrome.storage.local.get({ [storageKey]: [] }).then(function(d) {
+          var list = d[storageKey] || [];
+          var nh = message.handle.toLowerCase();
+          var idx = list.indexOf(nh);
+          if (idx !== -1) {
+            list.splice(idx, 1);
+            chrome.storage.local.set({ [storageKey]: list }).catch(function() {});
+          }
+        }).catch(function() {});
+        sendResponse({ ok: true });
+        return true;
+      }
+
+      // 获取 CSRF token
+      if (message.type === "MV3_GET_CSRF") {
+        var csrf = (document.cookie.match(/\bct0=([^;]+)/) || [])[1] || "";
+        sendResponse({ csrf: csrf });
+        return true;
+      }
+    });
+  }
+
+  function escapeHtml(str) {
+    return (str || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  }
+  var _h = escapeHtml;
+
+  function showBlockDetailPanel() {
+    var old = document.getElementById("cao-detail-panel");
+    if (old) { old.remove(); return; }
+
+    var panel = document.createElement("div");
+    panel.id = "cao-detail-panel";
+    panel.style.cssText = "position:fixed;bottom:48px;right:12px;z-index:9999;background:#1d1d1d;color:#fff;border-radius:8px;padding:12px;font:13px/1.4 Arial,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.5);max-height:60vh;overflow-y:auto;min-width:320px;max-width:420px";
+
+    var title = document.createElement("div");
+    title.style.cssText = "font-weight:700;font-size:14px;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid #333";
+    title.textContent = "当前推文 (" + tweetBlockList.length + ")";
+    panel.appendChild(title);
+
+    if (tweetBlockList.length === 0) {
+      var empty = document.createElement("div");
+      empty.style.cssText = "color:#888;font-size:12px;text-align:center;padding:20px 0";
+      empty.textContent = "暂无被处理的账号";
+      panel.appendChild(empty);
+    } else {
+      for (var i = 0; i < tweetBlockList.length; i++) {
+        var item = tweetBlockList[i];
+        var row = document.createElement("div");
+        row.style.cssText = "display:flex;align-items:flex-start;gap:8px;padding:6px 4px;border-bottom:1px solid #2a2a2a";
+        var avatarImg = item.avatar ? '<img src="' + item.avatar.replace(/"/g,"&quot;") + '" style="width:32px;height:32px;border-radius:50%;flex-shrink:0" alt="">' : '<span style="display:inline-block;width:32px;height:32px;border-radius:50%;background:#333;flex-shrink:0;text-align:center;line-height:32px;color:#888">?</span>';
+        var statusLabel = '<span style="color:#f87171;font-weight:600">🔒 已屏蔽</span>';
+        var replyPreview = item.replyText ? '<div style="color:#aaa;font-size:11px;margin-top:2px;line-height:1.3">' + _h(item.replyText.slice(0, 60)) + '</div>' : '';
+        row.innerHTML =
+          '<a href="https://x.com/' + _h(item.handle) + '" target="_blank" style="flex-shrink:0;display:block">' + avatarImg + '</a>' +
+          '<div style="flex:1;min-width:0">' +
+            '<div style="display:flex;align-items:center;gap:4px">' +
+              '<span style="font-weight:600;font-size:13px;color:#fff">' + _h(item.displayName || item.handle) + '</span>' +
+              '<span style="color:#888;font-size:12px">@' + _h(item.handle) + '</span>' +
+            '</div>' +
+            replyPreview +
+            '<div style="margin-top:2px">' + statusLabel + ' <a href="https://x.com/' + _h(item.handle) + '" target="_blank" style="color:#60a5fa;font-size:11px;text-decoration:none">查看账号</a></div>' +
+          '</div>';
+        panel.appendChild(row);
+      }
+    }
+
+    document.body.appendChild(panel);
+  }
+
+  document.addEventListener("click", function(e) {
+    if (e.target.closest("#cao-status-bar") || e.target.closest("#cao-detail-panel")) return;
+    var old = document.getElementById("cao-detail-panel");
+    if (old) old.remove();
+  });
+
+})();
