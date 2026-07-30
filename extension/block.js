@@ -242,7 +242,9 @@
     try {
       const tabs = await chrome.tabs.query({ url: ["https://x.com/*", "https://twitter.com/*"] });
       for (const tab of tabs) {
-        try { await chrome.tabs.sendMessage(tab.id, { type: "MV3_RELOAD_KEYWORDS" }); } catch (e) {}
+        try {
+          await chrome.tabs.sendMessage(tab.id, { type: "MV3_RELOAD_KEYWORDS", keywords: kwData.keywords, redirect: kwData.redirect });
+        } catch (e) {}
       }
     } catch (e) {}
   }

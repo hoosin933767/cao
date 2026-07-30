@@ -9,7 +9,12 @@
     function connect() {
       try {
         var port = chrome.runtime.connect({ name: "cao-keepalive" });
+        // 每 20 秒发一次心跳，确保 SW 持续存活
+        var heartbeat = setInterval(function() {
+          try { port.postMessage({ type: "ping" }); } catch(e) { clearInterval(heartbeat); }
+        }, 20000);
         port.onDisconnect.addListener(function() {
+          clearInterval(heartbeat);
           setTimeout(connect, 1000);
         });
       } catch(e) {}
@@ -886,28 +891,37 @@
     return m ? m[1].toLowerCase() : null;
   }
 
-  /** 批量获取多个账号的 profile bio（并发限流 + 取前 8KB 断流 + 内存缓存） */
+  /** 批量获取多个账号的 profile bio（通过 X API 获取，更可靠） */
   var bioCache = {};
+  var bioFetchSuccess = {}; // 标记 bio 是否成功获取
   function batchGetProfileBio(handles) {
     var unique = {};
     handles.forEach(function(h) { if (h && !bioCache[h]) unique[h] = true; });
     var uniqueList = Object.keys(unique);
     if (uniqueList.length === 0) return Promise.resolve();
-    // 并发上限 5，避免触发 X 限流
-    var concurrency = 5;
+    var concurrency = 3;
     var index = 0;
-    var results = [];
     function next() {
       if (index >= uniqueList.length) return Promise.resolve();
       var handle = uniqueList[index++];
       return new Promise(function(resolve) {
         var controller = new AbortController();
         var timeout = setTimeout(function() { controller.abort(); bioCache[handle] = ""; resolve(); }, 8000);
-        fetch("https://x.com/" + encodeURIComponent(handle), { credentials: "include", signal: controller.signal }).then(function(resp) {
+        var csrf = (document.cookie.match(/\bct0=([^;]+)/) || [])[1] || "";
+        fetch("https://x.com/i/api/1.1/users/show.json?screen_name=" + encodeURIComponent(handle), {
+          credentials: "include",
+          signal: controller.signal,
+          headers: {
+            "x-csrf-token": csrf,
+            "x-twitter-active-user": "yes",
+            "x-twitter-auth-type": "OAuth2Session",
+            "authorization": "Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA"
+          }
+        }).then(function(resp) {
           clearTimeout(timeout);
           if (!resp.ok) { bioCache[handle] = ""; resolve(); return; }
-          resp.text().then(function(html) {
-            bioCache[handle] = extractBioFromHtml(html);
+          resp.json().then(function(data) {
+            bioCache[handle] = data.description || "";
             resolve();
           }).catch(function() { bioCache[handle] = ""; resolve(); });
         }).catch(function() { clearTimeout(timeout); bioCache[handle] = ""; resolve(); });
@@ -953,6 +967,8 @@
         }
         return;
       }
+      // 每次扫描前强制加载自定义关键词
+      await window.SpamEngine.loadCustomKeywords(1);
 
       // 切换页面时重置计数和当前推文屏蔽列表
       var currentUrl = window.location.href;
@@ -971,13 +987,12 @@
       for (const article of allArticles) {
         const handle = getArticleHandle(article);
         if (!handle || suggestedAccounts.has(handle) || article.classList.contains("flagged-spam") || (myHandle && handle.toLowerCase() === myHandle) || (pageAuthorHandle && handle.toLowerCase() === pageAuthorHandle)) continue;
-        const replyText = getArticleReplyText(article);
-        if (isVerifiedAccount(article)) continue;
+        const replyText = (getArticleReplyText(article) || "").replace(/[\u200B-\u200D\uFEFF\u2028\u2029\u00AD\u2060]/g, "");
 
         try {
           const displayName = getArticleDisplayName(article);
           const accountResult = window.SpamEngine.detectAccount(displayName, replyText, handle, pageAuthorHandle);
-          if (!accountResult.isScam) continue;
+          if (!accountResult.isScam && !accountResult.matchedCustom) continue;
 
           accountResult.confirmed = !accountResult.needsBioCheck;
           article.classList.add("flagged-spam");
@@ -991,10 +1006,10 @@
           if (accountResult.needsBioCheck) {
             pendingBio[handle] = { article: article, displayName: displayName, replyText: replyText, featureResult: accountResult };
           } else {
-            // 不需要 bio 确认 → 直接记录 + 屏蔽
-            await saveBlockHistory(handle, displayName, getArticleAvatar(article), replyText);
-            await autoBlockAndHide(article, handle);
-          }
+             // 不需要 bio 确认 → 直接记录 + 屏蔽
+             await saveBlockHistory(handle, displayName, getArticleAvatar(article), replyText);
+             await autoBlockAndHide(article, handle);
+           }
         } catch (e) {
           console.warn("[CAO] scan error for", handle || "?", e);
         }
@@ -1030,9 +1045,18 @@
          if (!confirmed && p.featureResult.score <= -5) {
            confirmed = true;
          }
+         // 自定义关键词命中：有 bio 或引用了第三方 handle 就确认
+            if (!confirmed && p.featureResult.matchedCustom && (bioText || p.featureResult.mentionedHandle)) {
+            confirmed = true;
+         }
          if (confirmed) {
            if (bioText) {
              p.featureResult.features.push({ k: "资料确认(本人)", v: (bioText.length > 20 ? bioText.slice(0,20) + "…" : bioText), p: -3 });
+           }
+           // 自定义关键词命中：bio 确认后额外 -1
+           if (p.featureResult.matchedCustom) {
+             p.featureResult.features.push({ k: "自定义关键词+资料确认", v: "", p: -1 });
+             p.featureResult.score -= 1;
            }
            p.featureResult.confirmed = true;
            confirmTasks.push({ handle: handle, data: p });
@@ -1183,7 +1207,12 @@
 
       // block.html 通知重新加载关键词
       if (message.type === "MV3_RELOAD_KEYWORDS") {
-        window.SpamEngine?.loadCustomKeywords().then(() => sendResponse({ ok: true }));
+        if (message.keywords || message.redirect) {
+          window.SpamEngine?.setCustomKeywords(message.keywords || [], message.redirect || []);
+          sendResponse({ ok: true });
+        } else {
+          window.SpamEngine?.loadCustomKeywords().then(() => sendResponse({ ok: true }));
+        }
         return true;
       }
 

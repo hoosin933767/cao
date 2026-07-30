@@ -14,8 +14,7 @@
     { text: "线下资源", score: -3 }, { text: "线下约", score: -3 },
     { text: "同城男大", score: -3 },
     { text: "无偿", score: -2 }, { text: "免费", score: -2 },
-    { text: "约爱", score: -2 }, { text: "骚", score: -2 },
-    { text: "处女", score: -2 }, { text: "涩", score: -2 },
+    { text: "约爱", score: -2 }, { text: "骚", score: -4 }, { text: "处女", score: -2 }, { text: "涩", score: -2 },
     { text: "交友", score: -2 }, { text: "反差", score: -2 },
     { text: "返差", score: -2 }, { text: "同城", score: -2 },
     { text: "成人内容", score: -2 }, { text: "附近", score: -2 },
@@ -31,28 +30,33 @@
   // 自定义关键词：扁平列表，无分类
   var CUSTOM_KEYWORDS = { keywords: [], redirect: [] };
   var CUSTOM_KW_LOADED = false;
-  async function loadCustomKeywords() {
-    if (CUSTOM_KW_LOADED) return;
-    try {
-      if (typeof chrome !== "undefined" && chrome.storage) {
-        var data = await chrome.storage.local.get("mv3CustomKeywords");
-        if (data.mv3CustomKeywords && typeof data.mv3CustomKeywords === "object") {
-          var d = data.mv3CustomKeywords;
-          // 兼容旧格式：如果 d.adultStrong 存在则合并进来
-          var flat = [];
-          if (Array.isArray(d.keywords)) flat = d.keywords;
-          if (Array.isArray(d.adultStrong)) flat = flat.concat(d.adultStrong);
-          if (Array.isArray(d.adultWeak)) flat = flat.concat(d.adultWeak);
-          if (Array.isArray(d.promo)) flat = flat.concat(d.promo);
-          CUSTOM_KEYWORDS.keywords = flat;
-          CUSTOM_KEYWORDS.redirect = Array.isArray(d.redirect) ? d.redirect : [];
-          // 如果是旧格式，立即保存新格式清理旧分类
-          if (d.adultStrong || d.adultWeak || d.promo) {
-            saveCustomKeywords();
+  async function loadCustomKeywords(retries) {
+    if (retries === undefined) retries = 3;
+    for (var attempt = 0; attempt <= retries; attempt++) {
+      try {
+        if (typeof chrome !== "undefined" && chrome.storage) {
+          var data = await chrome.storage.local.get("mv3CustomKeywords");
+          if (data.mv3CustomKeywords && typeof data.mv3CustomKeywords === "object") {
+            var d = data.mv3CustomKeywords;
+            // 兼容旧格式：如果 d.adultStrong 存在则合并进来
+            var flat = [];
+            if (Array.isArray(d.keywords)) flat = d.keywords;
+            if (Array.isArray(d.adultStrong)) flat = flat.concat(d.adultStrong);
+            if (Array.isArray(d.adultWeak)) flat = flat.concat(d.adultWeak);
+            if (Array.isArray(d.promo)) flat = flat.concat(d.promo);
+            CUSTOM_KEYWORDS.keywords = flat;
+            CUSTOM_KEYWORDS.redirect = Array.isArray(d.redirect) ? d.redirect : [];
+            // 如果是旧格式，立即保存新格式清理旧分类
+            if (d.adultStrong || d.adultWeak || d.promo) {
+              saveCustomKeywords();
+            }
+            CUSTOM_KW_LOADED = true;
+            return;
           }
         }
-      }
-    } catch (e) {}
+      } catch (e) {}
+      if (attempt < retries) await new Promise(function(r) { setTimeout(r, 1000); });
+    }
     CUSTOM_KW_LOADED = true;
   }
   async function saveCustomKeywords() {
@@ -70,6 +74,11 @@
       keywords: (CUSTOM_KEYWORDS.keywords || []).slice(),
       redirect: (CUSTOM_KEYWORDS.redirect || []).slice(),
     };
+  }
+  function setCustomKeywords(keywords, redirect) {
+    if (Array.isArray(keywords)) CUSTOM_KEYWORDS.keywords = keywords;
+    if (Array.isArray(redirect)) CUSTOM_KEYWORDS.redirect = redirect;
+    CUSTOM_KW_LOADED = true;
   }
   function addCustomKeyword(word) {
     if (!CUSTOM_KEYWORDS.keywords) CUSTOM_KEYWORDS.keywords = [];
@@ -169,7 +178,7 @@
     return nonCjk / (last - first + 1);
   }
   /** 装饰 emoji（垃圾号常用的装饰符号） */
-  var DECORATIVE_EMOJI = /[\u{1F338}\u{1F33A}\u{1F33B}\u{1F339}\u{1F308}\u{1F381}\u{1F380}\u{1F48B}\u{1F525}\u{1F389}\u{1F38A}\u{1F38C}\u{1F3C6}\u{1F451}\u{1F484}\u{26A1}\u{1F5A4}\u2665\u{1F232}]/u;
+  var DECORATIVE_EMOJI = /[\u{1F338}\u{1F33A}\u{1F33B}\u{1F339}\u{1F308}\u{1F381}\u{1F380}\u{1F48B}\u{1F525}\u{1F389}\u{1F38A}\u{1F38C}\u{1F3C6}\u{1F451}\u{1F484}\u{26A1}\u{1F5A4}\u2665\u{1F232}\u{1F352}\u{1F44D}]/u;
 
   /** 检测是否含装饰 emoji */
   function hasDecorativeEmoji(text) {
@@ -223,19 +232,22 @@
     var dims = { displayName: 0, reply: 0, handle: 0, cross: 0 };
     var reasons = [];
     var mentionedHandle = null;
+    var matchedCustom = false; // 是否命中了自定义关键词
     // 正常交互白名单
     var WHITELIST = ["grok","elonmusk","jack","x","twitter","communitynotes","carlzha"];
 
     // ── Dim1: 显示名 (max -4) ──
     (function() {
       var dn = displayName || "";
-      // 扁平关键词匹配
-      var allKws = KEYWORDS.concat(CUSTOM_KEYWORDS.keywords.map(function(w) { return { text: w, score: -2 }; }));
+      // 扁平关键词匹配（keywords 和 redirect 都算）
+      var allKws = KEYWORDS.concat(CUSTOM_KEYWORDS.keywords.map(function(w) { return { text: w, score: -3 }; })).concat(CUSTOM_KEYWORDS.redirect.map(function(w) { return { text: w, score: -3 }; }));
       var bestScoreDN = 0;
       for (var i = 0; i < allKws.length; i++) {
         var kwC = extractCJK(allKws[i].text).join("");
         if (kwC && extractCJK(dn).join("").indexOf(kwC) !== -1) {
           if (allKws[i].score < bestScoreDN) bestScoreDN = allKws[i].score;
+          // 检查是否是自定义关键词（不在系统 KEYWORDS 中）
+          if (!KEYWORDS.some(function(k) { return k.text === allKws[i].text; })) matchedCustom = true;
         }
       }
       if (bestScoreDN <= -4) {
@@ -282,7 +294,7 @@
         }
       }
       if (isReplyToSomeone) {
-        // 正常 @ 互动，不对回复内容做惩罚
+        // 正常 @ 互动，不扣"无实质内容"的分
       } else if (!rt || rt.length === 0) {
         dims.reply = -1;
         reasons.push({ k: "回复-空", v: "", p: -1 });
@@ -294,27 +306,39 @@
           dims.reply = Math.min(dims.reply - 1, -3);
           reasons.push({ k: "回复-无实质内容", v: "", p: -1 });
         }
-        // 回复文本中的扁平关键词匹配 → 弱信号
-        if (/[\u4e00-\u9fff]/.test(rt)) {
-          var allKwsRt = KEYWORDS.concat(CUSTOM_KEYWORDS.keywords.map(function(w) { return { text: w, score: -2 }; }));
-          for (var i = 0; i < allKwsRt.length; i++) {
-            var kwC = extractCJK(allKwsRt[i].text).join("");
-            if (kwC && extractCJK(rt).join("").indexOf(kwC) !== -1) {
-              dims.reply = Math.min(dims.reply - 1, -3);
-              reasons.push({ k: "回复-关键词", v: allKwsRt[i].text, p: -1 });
-              break;
-            }
-          }
+      }
+      // 以下检测不区分是否 @ 别人，全局执行
+      // 自定义关键词匹配（keywords 和 redirect 都算）
+      var customOnly = [].concat(CUSTOM_KEYWORDS.keywords || []).concat(CUSTOM_KEYWORDS.redirect || []);
+      for (var ci = 0; ci < customOnly.length; ci++) {
+        if (rt.indexOf(customOnly[ci]) !== -1) {
+          dims.reply = Math.min(dims.reply - 3, -3);
+          reasons.push({ k: "回复-自定义关键词", v: customOnly[ci], p: -3 });
+          matchedCustom = true;
+          break;
         }
-        // 引流信号
-        var allRedirect = REDIRECT_SIGNALS.concat(CUSTOM_KEYWORDS.redirect || []);
-        for (var i = 0; i < allRedirect.length; i++) {
-          if (rt.indexOf(allRedirect[i]) !== -1) {
-            dims.reply = Math.min(dims.reply - 2, -3);
-            reasons.push({ k: "回复-引流", v: allRedirect[i], p: -2 });
+      }
+      // 系统关键词匹配 → 弱信号（仅中文）
+      if (/[\u4e00-\u9fff]/.test(rt)) {
+        var systemKws = KEYWORDS.slice();
+        for (var i = 0; i < systemKws.length; i++) {
+          var kwC = extractCJK(systemKws[i].text).join("");
+          if (kwC && extractCJK(rt).join("").indexOf(kwC) !== -1) {
+            dims.reply = Math.min(dims.reply - 1, -3);
+            reasons.push({ k: "回复-关键词", v: systemKws[i].text, p: -1 });
             break;
           }
         }
+      }
+      // 引流信号
+      var allRedirect = REDIRECT_SIGNALS.concat(CUSTOM_KEYWORDS.redirect || []);
+      for (var i = 0; i < allRedirect.length; i++) {
+        if (rt.indexOf(allRedirect[i]) !== -1) {
+          dims.reply = Math.min(dims.reply - 2, -3);
+          reasons.push({ k: "回复-引流", v: allRedirect[i], p: -2 });
+          break;
+        }
+      }
         // @第三方引流 — 仅当回复文本同时含中文推广/关键词时才扣分，避免"@binance 谢谢"误伤
         if (rt.indexOf("@") !== -1) {
           var atMatches = rt.match(/@[A-Za-z0-9_]{1,15}/g) || [];
@@ -330,7 +354,6 @@
             }
           }
         }
-      }
     })();
 
     // ── Dim3: Handle 随机 (max -2) ──
@@ -359,12 +382,8 @@
 
     var total = dims.displayName + dims.reply + dims.handle + dims.cross;
     var isSuspicious = total <= -4;
-    // 不需要 bio 确认的情况：
-    // 1. 显示名含成人强词（-4）且其他维度无信号 → 高置信
-    // 2. 总分 ≤ -6 → 信号足够强，直接确认（回复内容已有充分证据）
-    // 其他情况需要资料介绍确认
-    var needsBioCheck = isSuspicious && !(dims.displayName === -4 && dims.reply === 0 && dims.handle === 0 && dims.cross === 0) && !(total <= -6);
-    return { isScam: isSuspicious, score: total, features: reasons, needsBioCheck: needsBioCheck, mentionedHandle: mentionedHandle };
+    var needsBioCheck = (isSuspicious || matchedCustom) && !(matchedCustom && total <= -4) && !(dims.displayName === -4 && dims.reply === 0 && dims.handle === 0 && dims.cross === 0) && !(total <= -6);
+    return { isScam: isSuspicious, score: total, features: reasons, needsBioCheck: needsBioCheck, mentionedHandle: mentionedHandle, matchedCustom: matchedCustom };
   }
 
   /** 检测 profile bio 是否含成人推广信号（确认阶段使用）
@@ -373,8 +392,8 @@
     if (!text) return false;
     var cjk = extractCJK(text);
     var cjkStr = cjk.join("");
-    // 扁平关键词
-    var allKws = KEYWORDS.concat(CUSTOM_KEYWORDS.keywords.map(function(w) { return { text: w, score: -2 }; }));
+    // 扁平关键词（keywords 和 redirect 都算）
+    var allKws = KEYWORDS.concat(CUSTOM_KEYWORDS.keywords.map(function(w) { return { text: w, score: -3 }; })).concat(CUSTOM_KEYWORDS.redirect.map(function(w) { return { text: w, score: -3 }; }));
     for (var i = 0; i < allKws.length; i++) {
       var kwC = extractCJK(allKws[i].text).join("");
       if (kwC && cjkStr.indexOf(kwC) !== -1) return true;
@@ -408,6 +427,6 @@
     } catch (e) { console.error("[SpamEngine] init failed:", e); }
   }
   function onReady(cb) { if (ready) return cb(); readyCallbacks.push(cb); }
-  window.SpamEngine = { init: init, onReady: onReady, ready: function() { return ready; }, normalizeText: normalizeText, detectAccount: detectAccount, detectBio: detectBio, isHandleRandom: isHandleRandom, trainKeywords: trainKeywords, loadCustomKeywords: loadCustomKeywords, addCustomKeyword: addCustomKeyword, removeCustomKeyword: removeCustomKeyword, getCustomKeywords: getCustomKeywords };
+  window.SpamEngine = { init: init, onReady: onReady, ready: function() { return ready; }, normalizeText: normalizeText, detectAccount: detectAccount, detectBio: detectBio, isHandleRandom: isHandleRandom, trainKeywords: trainKeywords, loadCustomKeywords: loadCustomKeywords, addCustomKeyword: addCustomKeyword, removeCustomKeyword: removeCustomKeyword, getCustomKeywords: getCustomKeywords, setCustomKeywords: setCustomKeywords };
   init();
 })();
