@@ -1100,20 +1100,27 @@
     } catch(e) {}
   }
 
-  /** 悬浮按钮：点击打开当前推文屏蔽列表 */
+  /** 右下角状态显示 */
   function refreshStatusBar() {
     try {
-      var el = document.getElementById("cao-status-bar");
-      if (!el) {
-        el = document.createElement("div");
+      const count = tweetBlockList.length;
+      const floater = document.getElementById("cao-floater");
+      if (floater) {
+        floater.innerHTML = count > 0
+          ? '<img src="' + greenIconData + '" alt="CAO"><span style="margin-left:6px;font:12px/1 Arial,sans-serif;color:#fff">' + count + '</span>'
+          : '<img src="' + blackIconData + '" alt="CAO">';
+      }
+      // 兼容旧版独立 status bar
+      var el = document.getElementById("cao-status-bar") || document.createElement("div");
+      if (!el.parentNode) {
         el.id = "cao-status-bar";
-        el.style.cssText = "position:fixed;bottom:12px;right:12px;z-index:9999;background:#1d1d1d;color:#fff;border-radius:8px;padding:8px 14px;font:13px/1.4 Arial,sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.3);display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none";
+        el.style.cssText = "position:fixed;bottom:12px;right:52px;z-index:9999;background:#1d1d1d;color:#fff;border-radius:8px;padding:6px 10px;font:12px/1.4 Arial,sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.3);display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none";
         el.addEventListener("click", showBlockDetailPanel);
         document.body.appendChild(el);
       }
-      var count = tweetBlockList.length;
-      el.style.display = "flex";
-      el.innerHTML = count > 0 ? "🔒 已屏蔽 " + count + " <span style='opacity:.6'>[查看详情]</span>" : "▎ 0 <span style='opacity:.4'>[查看详情]</span>";
+      el.innerHTML = count > 0
+        ? "🔒 已屏蔽 " + count + " <span style='opacity:.6'>[查看详情]</span>"
+        : "▎ 0 <span style='opacity:.4'>[查看详情]</span>";
     } catch(e) {}
   }
 
