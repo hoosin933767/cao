@@ -5,7 +5,7 @@ assets/
 .vercel
 node_modules/
 freqtrade/
-scripts/
+scripts/*
 !scripts/regression.js
 gainers.html
 package.json
