@@ -6,6 +6,7 @@ assets/
 node_modules/
 freqtrade/
 scripts/
+!scripts/regression.js
 gainers.html
 package.json
 package-lock.json
