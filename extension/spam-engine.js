@@ -125,6 +125,7 @@
     ["pao","炮"],["se","色"],["ai","爱"],["si","私"],
     ["ni","你"],["wo","我"],["xin","信"],["liao","聊"],
     ["fu","服"],["wu","务"],["fuwu","服务"],
+    ["sao","骚"],["sao3","骚"],
   ];
   var LETTER_MAP = [
     ["v","微"],["V","微"],["u","有"],["U","有"],
@@ -146,6 +147,14 @@
     var out = [];
     for (var i = 0; i < text.length; i++) { if (/[\u4e00-\u9fff]/.test(text[i])) out.push(text[i]); }
     return out;
+  }
+  /** 拼音→中文 归一化（仅含中文文本时替换，防止纯英文误伤），用于识别"骚/sao"类拼音绕过 */
+  function pinyinNormalizeReply(text) {
+    var t = text || "";
+    if (/[\u4e00-\u9fff]/.test(t)) {
+      for (var i = 0; i < PINYIN_MAP_SORTED.length; i++) { t = t.split(PINYIN_MAP_SORTED[i][0]).join(PINYIN_MAP_SORTED[i][1]); }
+    }
+    return t;
   }
   function looseKeywordMatch(words, text) {
     var cjk = extractCJK(text).join("");
@@ -318,13 +327,15 @@
           break;
         }
       }
-      // 系统关键词匹配 → 弱信号（仅中文），权重取关键词真实分值（封顶 -3）
-      if (/[\u4e00-\u9fff]/.test(rt)) {
+      // 系统关键词匹配 → 权重取关键词真实分值（强词如"骚"= -4 可直达命中阈值）
+      // 先做拼音归一化，识别"sao货"这类拼音绕过
+      var rtNorm = pinyinNormalizeReply(rt);
+      if (/[\u4e00-\u9fff]/.test(rtNorm)) {
         var systemKws = KEYWORDS.slice();
         for (var i = 0; i < systemKws.length; i++) {
           var kwC = extractCJK(systemKws[i].text).join("");
-          if (kwC && extractCJK(rt).join("").indexOf(kwC) !== -1) {
-            dims.reply = Math.max(dims.reply + systemKws[i].score, -3);
+          if (kwC && extractCJK(rtNorm).join("").indexOf(kwC) !== -1) {
+            dims.reply = Math.max(dims.reply + systemKws[i].score, -4);
             reasons.push({ k: "回复-关键词", v: systemKws[i].text, p: systemKws[i].score });
             break;
           }
@@ -347,12 +358,12 @@
             if (atHandle === (pageAuthor || "").toLowerCase() || WHITELIST.indexOf(atHandle) !== -1) {
               // 正常的 @，不扣分
             } else {
-              // 检查回复是否命中推广关键词（不是简单的中文就扣分）
+              // 检查回复是否命中推广关键词（用拼音归一化后的文本，识别"sao"类绕过）
               var hasKeyword = false;
               var allReplyKws = KEYWORDS.concat(CUSTOM_KEYWORDS.keywords.map(function(w) { return { text: w, score: -3 }; }));
               for (var xi = 0; xi < allReplyKws.length; xi++) {
                 var kw = allReplyKws[xi].text;
-                if (rt.indexOf(kw) !== -1) { hasKeyword = true; break; }
+                if (rtNorm.indexOf(kw) !== -1) { hasKeyword = true; break; }
               }
               if (hasKeyword) {
                 mentionedHandle = atHandle;

@@ -858,6 +858,16 @@
   let vectorScanQueued = false;
   let vectorScanRunning = false;
 
+  /** 回复模板 key：去 @ / 链接 / emoji / 标点，只留中文+字母数字 */
+  function templateKey(text) {
+    return (text || "")
+      .replace(/@[A-Za-z0-9_]{1,15}/g, " ")
+      .replace(/https?:\/\/\S+/g, " ")
+      .replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]|[\u2600-\u27FF]|[\uFE00-\uFE0F]|[\u{1F000}-\u{1FFFF}]/gu, " ")
+      .replace(/[^\u4e00-\u9fffA-Za-z0-9]+/g, "")
+      .trim();
+  }
+
   /** 判断 article 对应的账号是否有企业/组织认证（金色/黄色认证，应跳过检测） */
   function isGoldVerifiedAccount(article) {
     return !!article.querySelector(
@@ -984,6 +994,17 @@
 
       // ── 第一遍：检测 + 隐藏，收集需要 bio 确认的 handle ──
       var pendingBio = {}; // handle → { article, displayName, replyText, featureResult }
+
+      // 水军模板统计：同一回复句子被多个账号使用 = 强水军信号
+      var templateCount = {};
+      allArticles.forEach(function(article) {
+        var h = getArticleHandle(article);
+        if (!h) return;
+        var key = templateKey(getArticleReplyText(article));
+        if (!key || key.length < 4) return;
+        templateCount[key] = (templateCount[key] || 0) + 1;
+      });
+
       for (const article of allArticles) {
         const handle = getArticleHandle(article);
         if (!handle || suggestedAccounts.has(handle) || article.classList.contains("flagged-spam") || (myHandle && handle.toLowerCase() === myHandle) || (pageAuthorHandle && handle.toLowerCase() === pageAuthorHandle)) continue;
@@ -994,6 +1015,13 @@
         try {
           const displayName = getArticleDisplayName(article);
           const accountResult = window.SpamEngine.detectAccount(displayName, replyText, handle, pageAuthorHandle);
+          // 水军模板惩罚：同一回复被多个账号使用 → 额外扣分
+          var tKey = templateKey(replyText);
+          if (tKey && templateCount[tKey] >= 2) {
+            accountResult.score -= 2;
+            accountResult.features.push({ k: "回复-水军模板", v: "x" + templateCount[tKey], p: -2 });
+            if (accountResult.score <= -4) accountResult.isScam = true;
+          }
           if (!accountResult.isScam && !accountResult.matchedCustom) continue;
 
           accountResult.confirmed = !accountResult.needsBioCheck;

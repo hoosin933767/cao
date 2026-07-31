@@ -1,0 +1,36 @@
+{
+  "批次": "2026-07-30 真实屏蔽记录",
+  "来源": "X 页面屏蔽记录导出",
+  "样本": [
+    {
+      "name": "香巧🌸",
+      "replyText": "我果然太涩了有人想锐评一下我的福嘛 🤭 🎻",
+      "handle": "antoniawat58912",
+      "expected": "block"
+    },
+    {
+      "name": "恨山🌸",
+      "replyText": "我果然太涩了有人想锐评一下我的福嘛 💙 🌳",
+      "handle": "quintina8362",
+      "expected": "block"
+    },
+    {
+      "name": "若雁🌸",
+      "replyText": "应该没人比我玩的开了吧 我福不黑不信你看 ⛄ 🎵",
+      "handle": "pbertram2230",
+      "expected": "borderline"
+    },
+    {
+      "name": "Cecilia Hsueh",
+      "replyText": "今天是我在 @MEXC 的最后一天。 这不是我离开加密货币行业。最近很多人离开了这个行业，但我哪儿也不会去。的确，那些简单的叙事已经消失，很多人都不再相信了。很好，这只是意味着游客们已经离开了。",
+      "handle": "cecilia_hsueh",
+      "expected": "pass"
+    },
+    {
+      "name": "Sierra Platform",
+      "replyText": "我们的创始人之一 @claybavor 经常将 Sierra 描述为生产快乐客户的机器。随着前沿模型的改进，越来越多的公",
+      "handle": "sierraplatform",
+      "expected": "pass"
+    }
+  ]
+}
