@@ -858,10 +858,10 @@
   let vectorScanQueued = false;
   let vectorScanRunning = false;
 
-  /** 判断 article 对应的账号是否有认证标识（蓝V/金V/灰V） */
-  function isVerifiedAccount(article) {
+  /** 判断 article 对应的账号是否有企业/组织认证（金色/黄色认证，应跳过检测） */
+  function isGoldVerifiedAccount(article) {
     return !!article.querySelector(
-      '[data-testid="icon-verified"], [data-testid="icon-verified-2"], [aria-label*="Verified"], svg[aria-label*="Verified"]'
+      '[aria-label*="Verified Organization" i], [aria-label*="官方" i], [data-testid*="gold" i], svg[fill*="#FFD700"], svg[fill*="#DAA520"]'
     );
   }
 
@@ -987,6 +987,8 @@
       for (const article of allArticles) {
         const handle = getArticleHandle(article);
         if (!handle || suggestedAccounts.has(handle) || article.classList.contains("flagged-spam") || (myHandle && handle.toLowerCase() === myHandle) || (pageAuthorHandle && handle.toLowerCase() === pageAuthorHandle)) continue;
+        // 跳过企业/组织认证账号（金色/黄色认证）
+        if (isGoldVerifiedAccount(article)) continue;
         const replyText = (getArticleReplyText(article) || "").replace(/[\u200B-\u200D\uFEFF\u2028\u2029\u00AD\u2060]/g, "");
 
         try {

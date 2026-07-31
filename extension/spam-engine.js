@@ -256,7 +256,7 @@
         return;
       }
       if (bestScoreDN < 0) {
-        dims.displayName = Math.min(bestScoreDN, -3);
+        dims.displayName = Math.max(bestScoreDN, -3);
         // 从 KEYWORDS 中找到匹配词用于 reason
         for (var i = 0; i < allKws.length; i++) {
           var kwC = extractCJK(allKws[i].text).join("");
@@ -268,14 +268,14 @@
       }
       // 装饰 emoji
       if (hasDecorativeEmoji(dn)) {
-        dims.displayName = Math.min(dims.displayName - 2, -4);
+        dims.displayName = Math.max(dims.displayName - 2, -4);
         reasons.push({ k: "显示名-装饰emoji", v: "", p: -2 });
       }
       // 引流信号
       var allRedirect = REDIRECT_SIGNALS.concat(CUSTOM_KEYWORDS.redirect || []);
       for (var i = 0; i < allRedirect.length; i++) {
         if (dn.indexOf(allRedirect[i]) !== -1) {
-          dims.displayName = Math.min(dims.displayName - 3, -4);
+          dims.displayName = Math.max(dims.displayName - 3, -4);
           reasons.push({ k: "显示名-引流", v: allRedirect[i], p: -3 });
           break;
         }
@@ -300,10 +300,10 @@
         reasons.push({ k: "回复-空", v: "", p: -1 });
       } else {
         if (isPureEmojiText(rt)) {
-          dims.reply = Math.min(dims.reply - 2, -3);
+          dims.reply = Math.max(dims.reply - 2, -3);
           reasons.push({ k: "回复-纯emoji", v: "", p: -2 });
         } else if (isMeaninglessReply(rt)) {
-          dims.reply = Math.min(dims.reply - 1, -3);
+          dims.reply = Math.max(dims.reply - 1, -3);
           reasons.push({ k: "回复-无实质内容", v: "", p: -1 });
         }
       }
@@ -312,20 +312,20 @@
       var customOnly = [].concat(CUSTOM_KEYWORDS.keywords || []).concat(CUSTOM_KEYWORDS.redirect || []);
       for (var ci = 0; ci < customOnly.length; ci++) {
         if (rt.indexOf(customOnly[ci]) !== -1) {
-          dims.reply = Math.min(dims.reply - 3, -3);
+          dims.reply = Math.max(dims.reply - 3, -3);
           reasons.push({ k: "回复-自定义关键词", v: customOnly[ci], p: -3 });
           matchedCustom = true;
           break;
         }
       }
-      // 系统关键词匹配 → 弱信号（仅中文）
+      // 系统关键词匹配 → 弱信号（仅中文），权重取关键词真实分值（封顶 -3）
       if (/[\u4e00-\u9fff]/.test(rt)) {
         var systemKws = KEYWORDS.slice();
         for (var i = 0; i < systemKws.length; i++) {
           var kwC = extractCJK(systemKws[i].text).join("");
           if (kwC && extractCJK(rt).join("").indexOf(kwC) !== -1) {
-            dims.reply = Math.min(dims.reply - 1, -3);
-            reasons.push({ k: "回复-关键词", v: systemKws[i].text, p: -1 });
+            dims.reply = Math.max(dims.reply + systemKws[i].score, -3);
+            reasons.push({ k: "回复-关键词", v: systemKws[i].text, p: systemKws[i].score });
             break;
           }
         }
@@ -334,23 +334,31 @@
       var allRedirect = REDIRECT_SIGNALS.concat(CUSTOM_KEYWORDS.redirect || []);
       for (var i = 0; i < allRedirect.length; i++) {
         if (rt.indexOf(allRedirect[i]) !== -1) {
-          dims.reply = Math.min(dims.reply - 2, -3);
+          dims.reply = Math.max(dims.reply - 2, -3);
           reasons.push({ k: "回复-引流", v: allRedirect[i], p: -2 });
           break;
         }
       }
-        // @第三方引流 — 仅当回复文本同时含中文推广/关键词时才扣分，避免"@binance 谢谢"误伤
+        // @第三方引流 — 仅当回复文本同时命中推广关键词时才扣分
         if (rt.indexOf("@") !== -1) {
           var atMatches = rt.match(/@[A-Za-z0-9_]{1,15}/g) || [];
           if (atMatches.length > 0) {
             var atHandle = atMatches[0].slice(1).toLowerCase();
             if (atHandle === (pageAuthor || "").toLowerCase() || WHITELIST.indexOf(atHandle) !== -1) {
               // 正常的 @，不扣分
-            } else if (/[\u4e00-\u9fff]/.test(rt)) {
-              // 回复含中文 + @第三方 → 才有引流嫌疑
-              mentionedHandle = atHandle;
-              dims.reply = Math.min(dims.reply - 1, -3);
-              reasons.push({ k: "回复-@引流", v: atHandle, p: -1 });
+            } else {
+              // 检查回复是否命中推广关键词（不是简单的中文就扣分）
+              var hasKeyword = false;
+              var allReplyKws = KEYWORDS.concat(CUSTOM_KEYWORDS.keywords.map(function(w) { return { text: w, score: -3 }; }));
+              for (var xi = 0; xi < allReplyKws.length; xi++) {
+                var kw = allReplyKws[xi].text;
+                if (rt.indexOf(kw) !== -1) { hasKeyword = true; break; }
+              }
+              if (hasKeyword) {
+                mentionedHandle = atHandle;
+                dims.reply = Math.max(dims.reply - 1, -3);
+                reasons.push({ k: "回复-@引流", v: atHandle, p: -1 });
+              }
             }
           }
         }
@@ -366,17 +374,17 @@
     if (dims.displayName <= -3 && dims.reply < 0) {
       // 显示名有实质性信号（推广/引流/成人词）+ 回复有信号 = 典型的垃圾号行为
       // 注意：仅装饰emoji(-2)不会触发此跨维
-      dims.cross = Math.min(dims.cross - 3, -3);
+      dims.cross = Math.max(dims.cross - 3, -3);
       reasons.push({ k: "跨维度-广告名+无意义回复", v: "", p: -3 });
     } else if (dims.displayName < 0 && dims.handle < 0) {
-      dims.cross = Math.min(dims.cross - 2, -3);
+      dims.cross = Math.max(dims.cross - 2, -3);
       reasons.push({ k: "跨维度-广告名+随机handle", v: "", p: -2 });
     } else if (hasDecorativeEmoji(displayName || "") && isPureEmojiText(replyText || "")) {
-      dims.cross = Math.min(dims.cross - 2, -3);
+      dims.cross = Math.max(dims.cross - 2, -3);
       reasons.push({ k: "跨维度-装饰名+纯emoji", v: "", p: -2 });
     } else if (dims.reply <= -2 && replyText && replyText.indexOf("@") !== -1) {
       // 回复含中文推广词 + @引流 = 典型广告评论
-      dims.cross = Math.min(dims.cross - 2, -3);
+      dims.cross = Math.max(dims.cross - 2, -3);
       reasons.push({ k: "跨维度-中文推广+@引流", v: "", p: -2 });
     }
 
