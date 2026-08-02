@@ -4,13 +4,6 @@ assets/
 .DS_Store
 .vercel
 node_modules/
-freqtrade/
 scripts/*
 !scripts/regression.js
-gainers.html
-package.json
-package-lock.json
 *.bak
-outputs/
-bian.html
-api/marketcap.js

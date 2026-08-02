@@ -6,6 +6,9 @@
 
 ## 2026-08-02
 
+- 修改：币安低市值监控项目拆分独立（bsc-low-cap-monitor/）
+  - 原因：按用户要求"一个项目对应一个目录"，规则应用到 Codex 下所有项目
+  - 说明：bian.html、outputs/、api/marketcap.js 移出本仓库，本仓库只保留 CAO 扩展
 - 修改：规则文件改为引用共享库（删除 docs/PROJECT_RULES.md，新增 docs/README.md 引用 ../../_dev-rules/）
   - 原因：按用户要求，规则放在 Codex/_dev-rules/ 所有项目共享，项目只引用不复制，保证规则唯一
 - 新增：项目开发规则落地（requirements.md / design.md / CHANGELOG.md）

@@ -18,3 +18,7 @@
 - 名称：CAO — Clean Accounts Optimizer（Chrome 扩展，MV3）
 - 功能：全自动检测 X/Twitter 垃圾回复，多维特征引擎一键屏蔽
 - 回测：`node scripts/regression.js`（38 条样本）
+
+## 相关项目
+
+- 币安低市值监控：`../../bsc-low-cap-monitor/`（独立仓库，从本仓库拆分）
