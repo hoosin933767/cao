@@ -543,6 +543,10 @@
       } catch (e) {
         if (attempt >= retries) {
           console.warn("[CAO] saveBlockHistory failed after " + (retries + 1) + " attempts:", e);
+          // context invalidated = 扩展已更新，页面脚本过期 → 提示刷新页面
+          if (e && e.message && e.message.indexOf("Extension context invalidated") !== -1) {
+            console.warn("[CAO] 扩展已更新，请刷新 X 页面（F5）以加载新版脚本");
+          }
         } else {
           await new Promise(function(r) { setTimeout(r, 200 * (attempt + 1)); });
         }
