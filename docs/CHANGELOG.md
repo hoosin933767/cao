@@ -1,13 +1,15 @@
 # 变更日志（CHANGELOG.md）
 
-> 每次改动记录。格式规范见 `docs/PROJECT_RULES.md` 第六章。
+> 每次改动记录。格式规范见 `../../_dev-rules/PROJECT_RULES.md` 第六章。
 
 ---
 
 ## 2026-08-02
 
-- 新增：项目开发规则落地（PROJECT_RULES.md / requirements.md / design.md / CHANGELOG.md）
-  - 原因：按用户要求，将 HEYUE 项目的《项目开发铁律》应用到本项目
+- 修改：规则文件改为引用共享库（删除 docs/PROJECT_RULES.md，新增 docs/README.md 引用 ../../_dev-rules/）
+  - 原因：按用户要求，规则放在 Codex/_dev-rules/ 所有项目共享，项目只引用不复制，保证规则唯一
+- 新增：项目开发规则落地（requirements.md / design.md / CHANGELOG.md）
+  - 原因：按用户要求，将《项目开发铁律》应用到本项目
 - 新增：context invalidated 时控制台提示刷新页面
   - 原因：扩展更新后旧页面脚本失效，用户困惑
 - 新增：水军模板检测（同句多账号 -2 分）

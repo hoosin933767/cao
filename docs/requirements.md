@@ -1,7 +1,7 @@
 # 需求文档（requirements.md）
 
 > 记录用户原话与确认结果，不加工、不解读。
-> 维护规则见 `docs/PROJECT_RULES.md`。
+> 维护规则见 `../../_dev-rules/PROJECT_RULES.md`。
 
 ---
 

@@ -1,6 +1,6 @@
 # 设计文档（design.md）
 
-> 架构、规则、界面设计。维护规则见 `docs/PROJECT_RULES.md`。
+> 架构、规则、界面设计。维护规则见 `../../_dev-rules/PROJECT_RULES.md`。
 
 ---
 
