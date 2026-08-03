@@ -523,6 +523,18 @@
     }, 2500);
   }
 
+  /** 扩展更新导致页面脚本过期时，显示可见提示（而非静默失败） */
+  function showReloadNotice() {
+    var el = document.getElementById("cao-reload-notice");
+    if (el) { el.style.display = "block"; return; }
+    el = document.createElement("div");
+    el.id = "cao-reload-notice";
+    el.style.cssText = "position:fixed;top:12px;right:12px;z-index:2147483647;background:#111;color:#fbbf24;border:1px solid #fbbf24;border-radius:8px;padding:10px 14px;font:13px/1.5 -apple-system,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.4);cursor:pointer;max-width:320px;";
+    el.innerHTML = "⚠️ CAO 扩展已更新，当前页面脚本已过期。<br>点击此处刷新页面以恢复屏蔽记录功能。";
+    el.addEventListener("click", function() { window.location.reload(); });
+    document.body.appendChild(el);
+  }
+
   /** 记录屏蔽历史（重试机制，避免 Extension context invalidated 等临时错误导致记录丢失） */
   async function saveBlockHistory(handle, name, avatar, replyText, retries) {
     if (retries === undefined) retries = 2;
@@ -546,6 +558,7 @@
           // context invalidated = 扩展已更新，页面脚本过期 → 提示刷新页面
           if (e && e.message && e.message.indexOf("Extension context invalidated") !== -1) {
             console.warn("[CAO] 扩展已更新，请刷新 X 页面（F5）以加载新版脚本");
+            showReloadNotice();
           }
         } else {
           await new Promise(function(r) { setTimeout(r, 200 * (attempt + 1)); });

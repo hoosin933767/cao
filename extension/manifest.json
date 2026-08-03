@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "CAO — Clean Accounts Optimizer",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "全自动检测 X/Twitter 垃圾回复，基于多维特征引擎一键屏蔽。",
   "background": {
     "service_worker": "background.js"
